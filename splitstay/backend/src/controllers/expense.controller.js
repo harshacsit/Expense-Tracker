@@ -1,0 +1,123 @@
+const Expense = require('../models/Expense');
+const ExpenseShare = require('../models/ExpenseShare');
+const HouseMember = require('../models/HouseMember');
+const User = require('../models/User');
+const { calculateEqualSplit, calculateCustomSplit } = require('../services/splitCalculator');
+
+// @desc  Add a new expense to a house
+// @route POST /api/houses/:id/expenses
+const addExpense = async (req, res) => {
+  try {
+    const { amount, category, description, splitType, customShares } = req.body;
+    const houseId = req.params.id;
+
+    if (!amount || !category) {
+      return res.status(400).json({ message: 'Amount and category are required' });
+    }
+
+    // Get all members of this house for the split
+    const memberships = await HouseMember.find({ houseId }).populate('userId', 'name email');
+    const members = memberships.map((m) => m.userId);
+    const memberIds = members.map((m) => m._id.toString());
+
+    if (members.length === 0) {
+      return res.status(400).json({ message: 'No members in this house' });
+    }
+
+    // Calculate splits
+    let shares;
+    try {
+      if (splitType === 'custom' && customShares) {
+        shares = calculateCustomSplit(amount, customShares);
+      } else {
+        shares = calculateEqualSplit(amount, memberIds);
+      }
+    } catch (splitError) {
+      return res.status(400).json({ message: splitError.message });
+    }
+
+    // Create expense
+    const expense = await Expense.create({
+      houseId,
+      paidById: req.user._id,
+      amount,
+      category,
+      description: description || '',
+      splitType: splitType || 'equal',
+    });
+
+    // Create individual shares
+    const shareDocuments = shares.map((s) => ({
+      expenseId: expense._id,
+      userId: s.userId,
+      houseId,
+      amountOwed: s.amountOwed,
+    }));
+    await ExpenseShare.insertMany(shareDocuments);
+
+    const populatedExpense = await Expense.findById(expense._id).populate('paidById', 'name email');
+
+    res.status(201).json({
+      expense: populatedExpense,
+      shares,
+      message: `Expense of ₹${amount} added and split ${splitType || 'equal'}ly among ${members.length} members`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc  Get all expenses for a house
+// @route GET /api/houses/:id/expenses
+const getExpenses = async (req, res) => {
+  try {
+    const { category, member, page = 1, limit = 20 } = req.query;
+    const filter = { houseId: req.params.id };
+
+    if (category) filter.category = category;
+    if (member) filter.paidById = member;
+
+    const expenses = await Expense.find(filter)
+      .populate('paidById', 'name email')
+      .sort({ date: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await Expense.countDocuments(filter);
+
+    // Attach shares to each expense
+    const expensesWithShares = await Promise.all(
+      expenses.map(async (exp) => {
+        const shares = await ExpenseShare.find({ expenseId: exp._id }).populate('userId', 'name');
+        return { ...exp.toObject(), shares };
+      })
+    );
+
+    res.json({ expenses: expensesWithShares, total, page: parseInt(page), limit: parseInt(limit) });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc  Delete an expense (only creator can delete)
+// @route DELETE /api/expenses/:id
+const deleteExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) return res.status(404).json({ message: 'Expense not found' });
+
+    if (expense.paidById.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You can only delete expenses you created' });
+    }
+
+    // Delete associated shares first
+    await ExpenseShare.deleteMany({ expenseId: expense._id });
+    await expense.deleteOne();
+
+    res.json({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { addExpense, getExpenses, deleteExpense };

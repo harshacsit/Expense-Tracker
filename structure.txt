@@ -1,0 +1,93 @@
+splitstay/
+│
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          # User, House, HouseMember, Expense, ExpenseShare, Settlement
+│   │   └── migrations/
+│   │
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── db.js               # Prisma client instance
+│   │   │
+│   │   ├── middleware/
+│   │   │   ├── auth.middleware.js  # JWT verification
+│   │   │   └── house.middleware.js # Checks user belongs to the house
+│   │   │
+│   │   ├── controllers/
+│   │   │   ├── auth.controller.js
+│   │   │   ├── house.controller.js
+│   │   │   ├── expense.controller.js
+│   │   │   ├── balance.controller.js
+│   │   │   ├── settlement.controller.js
+│   │   │   └── chatbot.controller.js   # handles POST /api/houses/:id/chat
+│   │   │
+│   │   ├── routes/
+│   │   │   ├── auth.routes.js
+│   │   │   ├── house.routes.js
+│   │   │   ├── expense.routes.js
+│   │   │   ├── settlement.routes.js
+│   │   │   └── chatbot.routes.js
+│   │   │
+│   │   ├── services/
+│   │   │   ├── splitCalculator.js  # equal/custom split logic
+│   │   │   ├── balanceEngine.js    # nets paid vs owed vs settlements
+│   │   │   ├── debtSimplifier.js   # minimum-transaction settlement suggestions
+│   │   │   └── chatbot/
+│   │   │       ├── chatbot.service.js   # LLM call + orchestration
+│   │   │       ├── intentRouter.js      # maps parsed intent -> function calls
+│   │   │       ├── functions.js         # tool/function-calling schema (addExpense, getBalances, settleUp)
+│   │   │       └── ragContext.js        # embeds/retrieves expense history for insight queries
+│   │   │
+│   │   ├── utils/
+│   │   │   └── generateInviteCode.js
+│   │   │
+│   │   ├── app.js                  # Express app setup
+│   │   └── server.js                # Entry point
+│   │
+│   ├── tests/
+│   │   ├── splitCalculator.test.js
+│   │   ├── balanceEngine.test.js
+│   │   └── chatbot.test.js
+│   │
+│   ├── .env
+│   └── package.json
+│
+├── frontend/
+│   ├── public/
+│   │
+│   ├── src/
+│   │   ├── api/
+│   │   │   ├── axiosClient.js
+│   │   │   └── chatbotApi.js
+│   │   │
+│   │   ├── components/
+│   │   │   ├── ExpenseForm.jsx     # includes split-type toggle
+│   │   │   ├── ExpenseList.jsx
+│   │   │   ├── BalanceSummary.jsx
+│   │   │   ├── SettleUpModal.jsx
+│   │   │   ├── HouseInviteCard.jsx
+│   │   │   └── ChatWidget.jsx      # floating AI chat bubble
+│   │   │
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── Register.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── HouseSetup.jsx      # create/join house
+│   │   │   └── History.jsx
+│   │   │
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx
+│   │   │
+│   │   ├── hooks/
+│   │   │   ├── useHouseBalances.js
+│   │   │   └── useChatbot.js
+│   │   │
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   │
+│   ├── .env
+│   └── package.json
+│
+├── BRD.md
+├── TDD.md
+└── README.md
