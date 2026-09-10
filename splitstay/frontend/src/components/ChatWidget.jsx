@@ -4,18 +4,28 @@ import { useChatbot } from '../hooks/useChatbot'
 
 const getInitials = (name) => name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
 
-export default function ChatWidget({ houseId, userName }) {
+export default function ChatWidget({ houseId, userName, onExpenseAdded }) {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
-  const { messages, loading, sendMessage, clearHistory } = useChatbot(houseId)
+  const { messages, loading, sendMessage, clearHistory } = useChatbot(houseId, onExpenseAdded)
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  useEffect(scrollToBottom, [messages])
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 200)
+    let timer
+    if (open) {
+      timer = setTimeout(() => inputRef.current?.focus(), 200)
+    }
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
   }, [open])
 
   const handleSend = (e) => {
@@ -26,9 +36,10 @@ export default function ChatWidget({ houseId, userName }) {
   }
 
   const QUICK_PROMPTS = [
-    'How much do I owe?',
-    'How should we settle up?',
-    'I paid ₹500 for groceries, split equally',
+    { label: '💰 Add expense', text: 'I paid ₹600 for internet, split equally' },
+    { label: '⚖️ Check balance', text: 'How much do I owe right now?' },
+    { label: '🤝 Settle up', text: 'What is the easiest way to settle all house debts?' },
+    { label: '📊 Spending summary', text: 'Show me our spending summary for this month' },
   ]
 
   return (
@@ -128,20 +139,19 @@ export default function ChatWidget({ houseId, userName }) {
           </div>
 
           {/* Quick prompts */}
-          {messages.length <= 1 && (
-            <div className="px-4 pb-2 flex gap-1.5 flex-wrap">
-              {QUICK_PROMPTS.map((p, i) => (
-                <button
-                  key={i}
-                  id={`quick-prompt-${i}`}
-                  onClick={() => { sendMessage(p); setInput('') }}
-                  className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white/80 hover:border-brand-500/50 transition-all"
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Quick prompts */}
+          <div className="px-3.5 pb-2 flex gap-1.5 flex-wrap">
+            {QUICK_PROMPTS.map((p, i) => (
+              <button
+                key={i}
+                id={`quick-prompt-${i}`}
+                onClick={() => { sendMessage(p.text); setInput('') }}
+                className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/70 hover:text-white hover:border-brand-500/60 hover:bg-brand-600/20 transition-all font-medium"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
 
           {/* Input */}
           <form onSubmit={handleSend} className="p-3 border-t border-white/10 flex gap-2">

@@ -1,4 +1,6 @@
+// @refresh reset
 import { createContext, useContext, useState, useEffect } from 'react'
+
 
 const AuthContext = createContext(null)
 
@@ -30,17 +32,17 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('splitstay_house')
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
+  // Render the Provider unconditionally so useAuth() is always available.
+  // Show a full-screen spinner while restoring auth state from localStorage.
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
+      {loading ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   )
 }

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { LogIn, Mail, Lock, Home, Eye, EyeOff } from 'lucide-react'
-import Lightfall from '../components/Lightfall'
+import Orb from '../components/Orb'
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -50,24 +50,14 @@ export default function Login() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
-      {/* Dynamic Lightfall WebGL Background */}
-      <div className="fixed inset-0 pointer-events-auto z-0 opacity-80">
-        <Lightfall
-          colors={['#A6C8FF', '#5227FF', '#FF9FFC']}
-          backgroundColor="#080b24"
-          speed={0.5}
-          streakCount={2}
-          streakWidth={1}
-          streakLength={1}
-          glow={1}
-          density={0.6}
-          twinkle={1}
-          zoom={3}
-          backgroundGlow={0.5}
-          opacity={0.85}
-          mouseInteraction
-          mouseStrength={0.5}
-          mouseRadius={1}
+      {/* Interactive Glowing Orb WebGL Background */}
+      <div className="fixed inset-0 pointer-events-auto z-0 flex items-center justify-center overflow-hidden">
+        <Orb
+          hoverIntensity={0.5}
+          rotateOnHover={true}
+          hue={0}
+          forceHoverState={false}
+          backgroundColor="#000000"
         />
       </div>
 

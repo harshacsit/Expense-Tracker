@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const passport = require('passport');
 const User = require('../models/User');
-const { register, login, getMe, forgotPassword, resetPassword, googleCallback } = require('../controllers/auth.controller');
+const { register, login, getMe, forgotPassword, resetPassword, googleCallback, deleteAccount } = require('../controllers/auth.controller');
 const { protect } = require('../middleware/auth.middleware');
 
 // ─── Google OAuth Strategy Setup (only if credentials are configured) ─────────
@@ -69,6 +69,7 @@ if (googleConfigured) {
 router.post('/register', register);
 router.post('/login', login);
 router.get('/me', protect, getMe);
+router.delete('/account', protect, deleteAccount);
 
 // ─── Forgot / Reset Password Routes ──────────────────────────────────────────
 router.post('/forgot-password', forgotPassword);

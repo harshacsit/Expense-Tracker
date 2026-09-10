@@ -1,229 +1,370 @@
 # Technical Design Document (TDD)
 
-**Project Name:** SplitStay
+**Project Name:** SplitStay (Shared Roommate Expense Tracker with Conversational AI)
 
-## Problem Statement
+---
 
-A standard expense tracker is single-user. This variation requires *shared* budgets: multiple roommates belong to one "house" account, and any member can add an expense that must be split fairly among all members — with the system tracking who owes whom.
+## 1. Problem Statement
 
-## Solution Overview
+A standard personal expense tracker operates on a single-user ledger. Communal living requires *shared* budgets: multiple roommates belong to a single "house" entity, where any member can log an expense that must be split accurately among all members — with the backend tracking net running balances and minimal settlement pathways.
 
-- **Grouping:** A `House` model links multiple `User`s via a `HouseMember` join table.
-- **Shared Logging:** Expenses are tied to the house (not a single user), with a record of who paid.
-- **Automatic Splitting:** Each expense generates `ExpenseShare` rows — one per member — capturing what they owe (equal or custom split).
-- **Balance Netting:** A balance service sums what each member paid minus what they owe, across all expenses, to compute real-time "who owes whom" balances.
-- **Settlement:** A `Settlement` model lets members record payments to each other, adjusting balances accordingly.
+---
 
-## A. Tech Stack
+## 2. Solution Overview
 
-- **Frontend:** React (Vite), Tailwind CSS
-- **Backend:** Node.js with Express
-- **Database:** PostgreSQL with Prisma ORM
-- **Auth:** JWT (JSON Web Tokens)
-- **AI Chatbot:** Claude/GPT API with function calling, used as a natural-language layer over the existing REST API
+- **Grouping:** A `House` document links multiple `User` documents via `HouseMember` references.
+- **Shared Logging:** Expenses belong to a house (not an isolated individual), recording the payer and category.
+- **Automatic Splitting:** Each expense creates `ExpenseShare` records — one per member — capturing their exact debt share under equal, exact, or percentage split formulas.
+- **Balance Netting:** A dedicated balance service (`balanceEngine.js`) nets total amounts paid against total owed across all expense shares and recorded settlements.
+- **Debt Simplification:** An optimization algorithm (`debtSimplifier.js`) guarantees that all house debts can be settled in the minimal number of transactions ($N - 1$).
+- **Settlement:** A `Settlement` model records peer-to-peer payments to adjust running balances in real time.
+- **Conversational Layer:** An AI chatbot service (`chatbot.service.js`) routes natural language requests to internal deterministic services using LLM tool function calling.
 
-## B. API Design
+---
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Create a new user account. |
-| POST | `/api/auth/login` | Authenticate and return JWT. |
-| POST | `/api/houses` | Create a new house/group. |
-| POST | `/api/houses/:id/join` | Join a house via invite code. |
-| GET | `/api/houses/:id/members` | List all members of a house. |
-| GET | `/api/houses/:id/expenses` | Fetch all expenses for a house. |
-| POST | `/api/houses/:id/expenses` | Add a new expense with split details. |
-| DELETE | `/api/expenses/:id` | Remove a specific expense entry. |
-| GET | `/api/houses/:id/balances` | Get calculated balances for every member. |
-| POST | `/api/houses/:id/settlements` | Record a payment between two members. |
-| POST | `/api/houses/:id/chat` | Send a natural-language message to the AI chatbot and receive a response/action result. |
+## 3. Tech Stack
 
-## C. Database Schema (Prisma)
+- **Frontend:**
+  - React 18 (Vite 5)
+  - Styling: Tailwind CSS + Vanilla CSS Tokens
+  - Visuals & 3D Shaders: OGL WebGL library (`Orb.jsx`, `Galaxy.jsx`, `Lightfall.jsx` components)
+  - Icons: Lucide React
+  - Networking & State: Axios with Bearer Interceptors, React Context API (`AuthContext.jsx`)
+- **Backend:**
+  - Runtime: Node.js with Express.js REST API
+  - Database: MongoDB Atlas with Mongoose ODM
+  - Authentication: JWT (JSON Web Tokens) with signed payloads + Passport.js (Google OAuth 2.0)
+  - Notifications: Resend API for transactional invite and balance emails
+- **AI Chatbot Service:**
+  - Google Gemini 1.5 Pro / Flash with native Tool Function Calling and RAG context retrieval
 
-```prisma
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  memberships HouseMember[]
-}
+---
 
-model House {
-  id         Int           @id @default(autoincrement())
-  name       String
-  inviteCode String        @unique
-  members    HouseMember[]
-  expenses   Expense[]
-}
+## 4. API Design
 
-model HouseMember {
-  id      Int    @id @default(autoincrement())
-  userId  Int
-  houseId Int
-  user    User   @relation(fields: [userId], references: [id])
-  house   House  @relation(fields: [houseId], references: [id])
-  shares  ExpenseShare[]
-}
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/api/auth/register` | Create a new user account with hashed password. | No |
+| POST | `/api/auth/login` | Authenticate credentials and return signed JWT token. | No |
+| GET | `/api/auth/me` | Fetch authenticated user profile. | Yes |
+| GET | `/api/auth/google` | Initiate Google OAuth 2.0 authentication flow. | No |
+| POST | `/api/auth/forgot-password` | Generate password reset token and email link. | No |
+| POST | `/api/auth/reset-password/:token` | Reset user password using verified token. | No |
+| GET | `/api/houses` | List all houses the authenticated user belongs to. | Yes |
+| POST | `/api/houses` | Create a new house and set creator as first member. | Yes |
+| POST | `/api/houses/join` | Join an existing house via invite code. | Yes |
+| GET | `/api/houses/:id` | Get details and metadata for a specific house. | Yes (`requireHouseMember`) |
+| GET | `/api/houses/:id/members` | List all verified members in a house. | Yes (`requireHouseMember`) |
+| PUT | `/api/houses/:id/currency` | Update house default currency (INR, USD, EUR, GBP). | Yes (`requireHouseMember`) |
+| GET | `/api/houses/:id/expenses` | Fetch paginated expense history with search/filters. | Yes (`requireHouseMember`) |
+| POST | `/api/houses/:id/expenses` | Add a new shared expense with split share calculations. | Yes (`requireHouseMember`) |
+| POST | `/api/houses/:id/expenses/scan-receipt` | Parse receipt photo using Gemini Vision OCR. | Yes (`requireHouseMember`) |
+| DELETE | `/api/expenses/:id` | Delete an expense and cascade to its shares. | Yes |
+| GET | `/api/houses/:id/balances` | Calculate real-time net balances for all house members. | Yes (`requireHouseMember`) |
+| POST | `/api/houses/:id/balances/remind` | Send balance reminder emails to debtors via Resend. | Yes (`requireHouseMember`) |
+| POST | `/api/houses/:id/settlements` | Record a settlement payment between two house members. | Yes (`requireHouseMember`) |
+| GET | `/api/houses/:id/settlements` | List all recorded settlements for a house. | Yes (`requireHouseMember`) |
+| POST | `/api/houses/:id/chat` | Process natural-language prompts via Gemini function-calling. | Yes (`requireHouseMember`) |
 
-model Expense {
-  id          Int             @id @default(autoincrement())
-  houseId     Int
-  paidById    Int
-  amount      Float
-  category    String
-  description String?
-  date        DateTime        @default(now())
-  house       House           @relation(fields: [houseId], references: [id])
-  shares      ExpenseShare[]
-}
+---
 
-model ExpenseShare {
-  id             Int          @id @default(autoincrement())
-  expenseId      Int
-  houseMemberId  Int
-  amountOwed     Float
-  expense        Expense      @relation(fields: [expenseId], references: [id])
-  member         HouseMember  @relation(fields: [houseMemberId], references: [id])
-}
+## 5. Database Schema (Mongoose / MongoDB Atlas)
 
-model Settlement {
-  id         Int      @id @default(autoincrement())
-  houseId    Int
-  fromUserId Int
-  toUserId   Int
-  amount     Float
-  date       DateTime @default(now())
-}
+```javascript
+// User Schema
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String }, // Nullable for OAuth users
+  googleId: { type: String, sparse: true },
+  avatar: { type: String },
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date }
+}, { timestamps: true });
+
+// House Schema
+const houseSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  inviteCode: { type: String, required: true, unique: true, uppercase: true },
+  currency: { type: String, enum: ['INR', 'USD', 'EUR', 'GBP'], default: 'INR' },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+}, { timestamps: true });
+
+// HouseMember Schema
+const houseMemberSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  houseId: { type: mongoose.Schema.Types.ObjectId, ref: 'House', required: true },
+  joinedAt: { type: Date, default: Date.now },
+  role: { type: String, enum: ['admin', 'member'], default: 'member' }
+}, { timestamps: true });
+houseMemberSchema.index({ userId: 1, houseId: 1 }, { unique: true });
+
+// Expense Schema
+const expenseSchema = new mongoose.Schema({
+  houseId: { type: mongoose.Schema.Types.ObjectId, ref: 'House', required: true },
+  paidById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  amount: { type: Number, required: true, min: 0.01 },
+  category: {
+    type: String,
+    required: true,
+    enum: ['Rent', 'Groceries', 'Utilities', 'Internet', 'Cooking Gas', 'Entertainment', 'Other']
+  },
+  description: { type: String, trim: true },
+  splitType: { type: String, enum: ['equal', 'custom', 'percentage', 'exact'], default: 'equal' },
+  date: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+// ExpenseShare Schema
+const expenseShareSchema = new mongoose.Schema({
+  expenseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Expense', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  houseId: { type: mongoose.Schema.Types.ObjectId, ref: 'House', required: true },
+  amountOwed: { type: Number, required: true, min: 0 }
+}, { timestamps: true });
+
+// Settlement Schema
+const settlementSchema = new mongoose.Schema({
+  houseId: { type: mongoose.Schema.Types.ObjectId, ref: 'House', required: true },
+  fromUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  toUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  amount: { type: Number, required: true, min: 0.01 },
+  date: { type: Date, default: Date.now },
+  note: { type: String, trim: true }
+}, { timestamps: true });
 ```
 
-## D. Split Calculation Logic
+---
 
-1. When an expense is added, the payer and split type (equal / custom) are recorded.
-2. For **equal splits**, `amountOwed` per member = `amount / numberOfMembers`.
-3. For **custom splits**, the frontend sends per-member amounts, validated so they sum to the total expense.
-4. Each member's net balance in a house = (total they paid) − (total `amountOwed` across all `ExpenseShare` rows), adjusted by any recorded `Settlement`s.
+## 6. Split Calculation Logic (`splitCalculator.js`)
 
-## E. AI Chatbot Architecture
+The split calculator service is responsible for dividing expenses fairly across participants with exact mathematical precision:
 
-**Flow:** User message → `chatbot.controller.js` → `chatbot.service.js` (calls LLM with function-calling enabled) → LLM returns either a text answer or a function call → `intentRouter.js` maps the function call to an existing internal service (`splitCalculator`, `balanceEngine`, `settlement` creation) → result is returned to the user in natural language.
+1. **Supported Split Types:**
+   - **Equal Split:** Divides total amount evenly across all designated members.
+   - **Exact Amount Split:** User specifies exact currency values for each member that sum to the total.
+   - **Percentage Split:** User allocates percentage shares (e.g. 50%, 25%, 25%) that must sum to 100%.
+2. **Residual Fraction Distribution (Zero Floating-Point Drift):**
+   - In financial calculations, dividing amounts (e.g. ₹100.00 among 3 people) produces repeating decimals (`33.3333...`).
+   - `splitCalculator.js` calculates base integer cents (`Math.floor(totalCents / n)`) and derives the remainder:
+     $$\text{Residual} = \text{Total Cents} - (n \times \text{Base Cents})$$
+   - The remaining cents/paise are distributed sequentially (1 cent per share) to the initial members until the residual is 0.
+   - For percentage splits, residual cents are distributed using the Hamilton / Largest Remainder method based on fractional remainder values.
+   - **Guarantee:** $\sum \text{amountOwed} \equiv \text{Total Expense}$ down to the last penny with zero rounding drift.
+3. **Automated Testing:**
+   - Enforced by unit tests in `splitCalculator.test.js`, testing edge cases such as odd decimal amounts, varying member group sizes, and fractional percentages.
 
-**Function-calling schema (exposed to the LLM):**
+---
 
-```json
-[
-  {
-    "name": "addExpense",
-    "description": "Add a new shared expense to the house",
-    "parameters": {
-      "amount": "number",
-      "category": "string",
-      "splitType": "equal | custom",
-      "customShares": "object (optional)"
-    }
-  },
-  {
-    "name": "getBalances",
-    "description": "Get who owes whom in the current house",
-    "parameters": {}
-  },
-  {
-    "name": "suggestSettlements",
-    "description": "Get the minimum set of payments needed to settle all balances",
-    "parameters": {}
-  }
-]
+## 7. Debt Simplification Engine (`debtSimplifier.js`)
+
+### Formal Guarantee:
+> The minimum-cash-flow debt simplification algorithm guarantees that **$N$ house members can always fully settle their collective balances in at most $N - 1$ transactions**, by greedily matching the largest debtor against the largest creditor until all balances reach zero.
+
+### Algorithm Specification:
+1. **Netting:** For each member $i$, compute:
+   $$\text{NetBalance}_i = (\text{Total Paid by } i) - (\text{Total Owed by } i) + (\text{Settlements Given}) - (\text{Settlements Received})$$
+2. **Classification:** Separate members into two priority lists:
+   - **Creditors:** $\text{NetBalance} > 0$ (sorted descending by amount).
+   - **Debtors:** $\text{NetBalance} < 0$ (sorted ascending by negative magnitude).
+3. **Greedy Matching Loop:**
+   - Pick the largest debtor $D$ and largest creditor $C$.
+   - Transaction amount: $T = \min(|D|, C)$.
+   - Record payment: $D \to C \text{ of amount } T$.
+   - Update remaining balances: $D \leftarrow D + T$, $C \leftarrow C - T$.
+   - Remove any member whose balance reaches zero (within a $0.005$ epsilon threshold).
+   - Repeat until both lists are empty.
+4. **Result:** Reduces arbitrary circular debts ($O(N^2)$ transfers) to a clean, minimal directed graph of transactions ($O(N)$ transfers).
+
+---
+
+## 8. AI Chatbot Architecture (`chatbot.service.js`)
+
+SplitStay integrates Google Gemini with deterministic tool function calling to provide natural language interactions without financial hallucinations.
+
+```mermaid
+sequenceDiagram
+    participant User as Roommate (Browser)
+    participant Widget as ChatWidget.jsx
+    participant API as chatbot.controller.js
+    participant Service as chatbot.service.js
+    participant Gemini as Google Gemini 1.5
+    participant Router as intentRouter.js
+    participant DB as MongoDB Atlas
+
+    User->>Widget: "I paid ₹600 for internet, split equally"
+    Widget->>API: POST /api/houses/:id/chat
+    API->>Service: handleChat(message, history, houseId)
+    Service->>Gemini: chat.sendMessageWithTools(prompt, GEMINI_TOOLS)
+    Gemini-->>Service: FunctionCall: add_expense(amount: 600, category: "Internet", splitType: "equal")
+    Service->>Router: routeIntent("add_expense", args, houseId)
+    Router->>DB: Create Expense & ExpenseShare documents
+    Router-->>Service: Tool Result: { success: true, expenseId: "..." }
+    Service->>Gemini: Send ToolResponse back to Gemini
+    Gemini-->>Service: "Added ₹600 for Internet split equally (₹200 each) ✅"
+    Service-->>API: Natural language response
+    API-->>Widget: Render assistant bubble
 ```
 
-**Design principle:** The chatbot never writes to the database directly — it only ever calls the same internal services/endpoints a normal UI action would, so validation, authorization (`house.middleware.js`), and split/balance logic stay identical whether the user clicks a button or types a sentence.
+### Registered Gemini Tools (`functions.js`):
+1. `add_expense`: Log an expense with amount, category, split type, and optional custom shares.
+2. `get_balances`: Retrieve real-time member net balances for the current house.
+3. `get_settlements`: Retrieve minimal cash flow settlement recommendations.
+4. `list_expenses`: Search and filter recent house expense entries.
 
-**Insights (RAG):** For open-ended questions ("did we spend more on food this month?"), `ragContext.js` retrieves relevant expense records (via summarized embeddings or a simple filtered query) and passes them to the LLM as context before it answers.
+### Chatbot Guardrails:
+- **Zero Direct Database Writes:** Gemini cannot write directly to MongoDB. All state mutations pass through `intentRouter.js` and validated internal services.
+- **Strict Role Alternation:** History is scrubbed to guarantee valid `user` $\to$ `model` $\to$ `user` turns, dropping invalid initial system prompts or consecutive model messages.
 
-**Debt simplification:** `debtSimplifier.js` implements a minimum-cash-flow algorithm — netting all balances, then greedily matching the largest debtor to the largest creditor — to minimize the number of settlement transactions suggested.
+---
 
-## F. Implementation Strategy
+## 9. UI/UX Design System, Accessibility & PWA
 
-- **Phase 1 (Database):** Set up Postgres and define the Prisma schema (User, House, HouseMember, Expense, ExpenseShare, Settlement).
-- **Phase 2 (Backend):** Implement auth routes, house creation/joining, and expense CRUD with split logic. Use JWT middleware to ensure only house members can access house data.
-- **Phase 3 (Balance Engine):** Build the balance-calculation service that aggregates shares and settlements into a "who owes whom" summary.
-- **Phase 4 (Frontend):** Build house creation/join flow, the expense form (with split-type toggle), the balances dashboard, and transaction history.
-- **Phase 5 (AI Chatbot):** Integrate the LLM with function calling, build the intent router, and wire up the `ChatWidget.jsx` on the frontend.
-- **Phase 6 (Deployment):** Deploy frontend on Vercel and backend on Render/Railway.
+- **Glassmorphic Theme:**
+  - Dark-mode background using tailwind color tokens (`#0a0a0f`, `#141526`).
+  - Frosted-glass container cards (`backdrop-blur-xl`, `bg-white/[0.04]`, `border-white/[0.08]`).
+  - Gradient badges and primary action buttons (`linear-gradient(135deg, #6070f5 0%, #a855f7 100%)`).
+- **Animated WebGL Shaders (React Bits):**
+  - **`Orb.jsx`:** Interactive glowing 3D simplex noise energy ring reacting to mouse movement and hover rotation on authentication screens.
+  - **`Galaxy.jsx`:** Dynamic starfield shader with monochrome twinkling stars, rotation, and cursor repulsion physics.
+  - **`Lightfall.jsx`:** Radial streak meteor lightfall shader.
+- **Dashboard Interface:**
+  - Real-time monthly spend counter and personal balance indicator.
+  - "Settle Up" modal pre-populating recommended settlement amounts.
+- **Split Configuration Tabs:**
+  - Interactive toggle between **Equal Split**, **Exact Amount**, and **Percentage Split** with inline validation indicators.
+- **Chat Widget (`ChatWidget.jsx`):**
+  - Floating bottom-right widget with auto-scroll and quick-prompt suggestion chips (*"Who owes what?"*, *"Add grocery bill"*, *"How to settle?"*).
+- **Mobile-First Responsive Design:**
+  - Responsive breakpoints (`sm`, `md`, `lg`, `xl`) with mobile-optimized touch targets (minimum 44px hit areas).
+  - Floating bottom drawer pattern on small screens for forms and modals.
+- **Progressive Web App (PWA) Support:**
+  - Service worker caching core frontend application shell for instant subsequent loads.
+  - Web App Manifest providing install-to-homescreen capabilities on iOS Safari and Android Chrome.
+  - Offline-resilient view allowing roommates to consult cached balance records without network connectivity.
+- **Accessibility (a11y):**
+  - High-contrast typography adhering to WCAG 2.1 Level AA color standards.
+  - Visible keyboard focus rings (`focus-visible:ring-2 focus-visible:ring-brand-500`).
+  - Explicit ARIA attributes (`aria-expanded`, `aria-label`, `aria-modal`, `role="dialog"`) on all custom dropdowns, tabs, and modals.
 
-## F. User Stories
+---
+
+## 10. Security & Non-Functional Specifications
+
+1. **Password Security:** Hashed using `bcryptjs` with salt work factor = 10 before saving to MongoDB.
+2. **Stateless JWT Authorization:** Signed with HMAC-SHA256 secret (`JWT_SECRET`), 7-day expiration policy (`expiresIn: '7d'`).
+3. **House Authorization Boundary:** `house.middleware.js` verifies that the requester's `userId` has an active record in `HouseMember` for the target `houseId`. Unauthorized attempts return `403 Forbidden`.
+4. **Repository & Secret Hygiene:** Root `.gitignore` strictly prevents staging of `.env`, `node_modules/`, `dist/`, build artifacts, and debug logs.
+5. **Server Resilience:** Server listens on `0.0.0.0` with explicit port conflict listeners (`EADDRINUSE`) and graceful 5-second MongoDB connection timeouts (`serverSelectionTimeoutMS: 5000`).
+
+---
+
+## 11. Testing Strategy
+
+SplitStay incorporates a comprehensive automated test pyramid designed to ensure mathematical accuracy, debt settlement correctness, and edge-case reliability:
+
+```
+          / \
+         / E2E \       <- Playwright / Manual User Journeys
+        /-------\
+       /  Integ  \     <- Supertest + In-Memory Mongo API Tests
+      /-----------\
+     /    Unit     \   <- Jest: splitCalculator, balanceEngine, debtSimplifier
+    /---------------\
+```
+
+### 1. Unit Testing:
+- **`splitCalculator.test.js`:**
+  - Equal split division with exact penny/paise distribution (e.g. ₹100.00 / 3 $\to$ [33.34, 33.33, 33.33], sum $\equiv$ 100.00).
+  - Percentage split allocation using largest-remainder distribution with validation that percentages must sum to 100%.
+  - Custom exact amount allocation matching total amount within 0.01 tolerance.
+  - Invariant assertion: zero floating-point accumulation drift across arbitrary decimal sums.
+- **`balanceEngine.test.js`:**
+  - Mathematical correctness of member net balances: $\text{Total Paid} - \text{Total Owed} + \text{Settlements Given} - \text{Settlements Received}$.
+  - Debt simplification validation verifying that $N$ house members settle in at most $N - 1$ transactions.
+  - Zero-balance invariance (sum of all net balances in any closed house must always equal 0.00).
+
+### 2. Integration Testing:
+- Complete end-to-end financial transaction cycles:
+  1. Roommate A creates a house with Roommates B and C.
+  2. Roommate A logs a ₹1,200 equal-split expense $\to$ Verify A is owed ₹800, B and C each owe ₹400.
+  3. Roommate B records a ₹400 settlement payment to A $\to$ Verify B's balance reaches ₹0.00 and A's balance decreases to +₹400.
+  4. Roommate C records a ₹400 settlement payment to A $\to$ Verify all house balances reach exactly ₹0.00.
+
+### 3. Edge-Case Test Scenarios:
+- **Zero-Member Expense Attempt:** Submitting an expense to an empty house returns `400 Bad Request` with appropriate validation messaging.
+- **Over-Settlement Guard:** Validating that recorded settlements do not exceed outstanding balances without an explicit user override note.
+- **Duplicate Settlement Protection:** Idempotency checking to prevent double-submitting settlement payments on slow network taps.
+- **Unsettled Member Departure:** Guard logic preventing a member from leaving or being removed from a house while carrying a non-zero net balance.
+
+---
+
+## 12. API Documentation
+
+To ensure transparent integration and developer discoverability, the SplitStay REST API is formally documented using the **OpenAPI 3.0 (Swagger)** specification:
+
+- **Interactive API Documentation:**
+  - Accessible via `/api-docs` when running in development mode (via `swagger-ui-express`).
+  - Provides a live playground allowing developers to test endpoints, inspect JSON schemas, and review authorization bearer token requirements.
+- **Exportable Postman Collection:**
+  - A pre-configured `SplitStay_API.postman_collection.json` file is maintained in the repository root.
+  - Includes environment variable templates (`{{baseUrl}}`, `{{authToken}}`, `{{houseId}}`), automated pre-request scripts for JWT injection, and saved example responses for all 20+ routes.
+
+---
+
+## 13. Deployment & DevOps
+
+SplitStay is architected for friction-free local execution and automated production deployments:
+
+### 1. Continuous Integration (CI Pipeline):
+- **GitHub Actions Workflow (`.github/workflows/ci.yml`):**
+  - Triggers on every `push` and `pull_request` to `main` and `develop` branches.
+  - **Jobs Executed:**
+    1. Code linting and format verification.
+    2. Backend automated test suite execution (`npm test` in `splitstay/backend`).
+    3. Frontend production bundle build verification (`npm run build` in `splitstay/frontend`).
+    4. Staging environment readiness verification.
+
+### 2. Containerization (Docker & Compose):
+- **Backend `Dockerfile`:**
+  - Lightweight multi-stage Node.js alpine image minimizing attack surface and image size (<150MB).
+  - Production dependency installation, non-root user execution (`USER node`), and container health check endpoints (`/health`).
+- **`docker-compose.yml` (One-Command Local Setup):**
+  - Orchestrates the full SplitStay application stack with a single command (`docker compose up --build`):
+    - `splitstay-backend`: Node.js Express server on port 5000.
+    - `splitstay-frontend`: Vite / Nginx client on port 3000.
+    - `splitstay-mongo`: Local MongoDB 7.0 container with persistent named volume storage.
+
+### 3. Environment Separation:
+- **Development (`.env.development`):**
+  - Connects to local or sandbox MongoDB cluster, verbose debug logs enabled, CORS configured for `localhost:3000`.
+- **Production (`.env.production`):**
+  - Secured MongoDB Atlas replica set URI, enforced TLS encryption, production-grade JWT secret keys, and strict CORS origins.
+
+---
+
+## 14. Implementation Sprints & User Stories
 
 ### Sprint 1: Infrastructure & Auth (The Foundation)
-**Goal:** Get the environment ready and ensure users can securely enter the system.
-
-**Story 1: Database Setup**
-As a Developer, I want to initialize the database with User, House, HouseMember, Expense, ExpenseShare, and Settlement schemas so that we have a structured way to store shared expense data.
-*Acceptance Criteria:* Prisma client is generated; migration applied to local Postgres instance.
-
-**Story 2: User Registration**
-As a User, I want to sign up with an email and password so that I can have a private account.
-*Acceptance Criteria:* Password is encrypted (bcrypt); user record saved in DB; 201 status returned.
-
-**Story 3: User Authentication**
-As a User, I want to log in to my account so that I can access my houses and dashboard.
-*Acceptance Criteria:* Valid login returns a JWT; unauthorized attempts return 401.
+- **Story 1: Database Setup:** Initialize MongoDB Atlas connection and Mongoose models (`User`, `House`, `HouseMember`, `Expense`, `ExpenseShare`, `Settlement`).
+- **Story 2: User Registration:** Register with email and password (bcrypt salt rounds = 10). Return 201 with JWT.
+- **Story 3: User Authentication:** Secure login returning JWT and user profile. 401 on invalid credentials.
 
 ### Sprint 2: Houses & Shared Expenses (The Build)
-**Goal:** Enable roommates to group together and log shared expenses.
-
-**Story 4: Create a House**
-As a User, I want to create a house and get a unique invite code so that I can invite my roommates.
-*Acceptance Criteria:* House is created with the current user as first member; invite code is unique.
-
-**Story 5: Join a House**
-As a User, I want to join a house using an invite code so that I can start sharing expenses with my roommates.
-*Acceptance Criteria:* Valid code adds the user as a HouseMember; invalid code returns an error.
-
-**Story 6: API - Add Expense with Split**
-As a User, I want to add an expense and choose how it's split (equal or custom) so that costs are shared fairly.
-*Acceptance Criteria:* Equal split divides amount evenly across all members; custom split validates that shares sum to the total; ExpenseShare rows are created correctly.
-
-**Story 7: API - Fetch House Expenses**
-As a User, I want to see all expenses logged in my house so that I know what's been spent.
-*Acceptance Criteria:* API returns only expenses belonging to houses the user is a member of.
+- **Story 4: House Creation:** Create house with unique alphanumeric invite code. Creator assigned as admin member.
+- **Story 5: Join House:** Join house via invite code; duplicate membership prevented.
+- **Story 6: Add Expense with Split Logic:** Support equal, exact, and percentage splits; residual paise distributed evenly with zero loss.
+- **Story 7: Fetch Expenses:** Retrieve house expenses protected by `house.middleware.js` with search and pagination.
 
 ### Sprint 3: Balances, Settlement & Dashboard (The Polish)
-**Goal:** Show members what they owe, let them settle up, and provide insights.
+- **Story 8: Balance Calculation:** Compute net balances for all members, netting total paid minus total owed plus settlements.
+- **Story 9: Debt Simplification:** Implement greedy minimum-cash-flow algorithm in `debtSimplifier.js` guaranteeing $\le N - 1$ transactions.
+- **Story 10: Record Settlement:** Record peer-to-peer settlement, updating running balances immediately.
+- **Story 11: Dashboard & UI Polish:** Build glassmorphic dashboard with WebGL auth screens (`Orb.jsx`, `Galaxy.jsx`) and dynamic currency switcher.
 
-**Story 8: API - Calculate Balances**
-As a User, I want to see how much each roommate owes or is owed so that I know who to pay or collect from.
-*Acceptance Criteria:* Balance calculation nets out amounts paid, amounts owed, and recorded settlements per member.
-
-**Story 9: Record a Settlement**
-As a User, I want to record a payment I made to a roommate so that our balance is updated.
-*Acceptance Criteria:* Settlement is saved and immediately reflected in the balances endpoint.
-
-**Story 10: Frontend - Dashboard Summary**
-As a User, I want to see total house spending and my personal balance on a dashboard so that I can monitor shared finances at a glance.
-*Acceptance Criteria:* Dashboard displays monthly total, my share, and a clear "you owe / you are owed" breakdown.
-
-**Story 11: Quality Assurance & Bug Bash**
-As a Team, we want to perform a code audit so that we can remove any "vibe-coded" technical debt.
-*Acceptance Criteria:* All endpoints have at least one unit test; split and balance calculations are covered by tests; no console errors in the browser.
-
-### Sprint 4: AI Chatbot Assistant (The Smart Layer)
-**Goal:** Let users manage and query their shared expenses conversationally.
-
-**Story 12: Natural-Language Expense Entry**
-As a User, I want to tell the chatbot "I paid ₹800 for groceries, split equally" so that I don't have to fill out the expense form manually.
-*Acceptance Criteria:* Message is parsed into amount/category/split type; `addExpense` function call is triggered; expense appears in history.
-
-**Story 13: Conversational Balance Queries**
-As a User, I want to ask "how much does Sam owe me?" so that I can quickly check balances without opening the dashboard.
-*Acceptance Criteria:* Chatbot calls `getBalances` and returns an accurate, human-readable answer.
-
-**Story 14: Settlement Suggestions**
-As a User, I want the chatbot to tell me the fewest payments needed to settle all house balances so that settling up is simple.
-*Acceptance Criteria:* `suggestSettlements` returns a minimized list of payments that fully resolves all balances.
-
-**Story 15: Spending Insights (RAG)**
-As a User, I want to ask "did we spend more on food this month than last?" so that I can understand our spending trends.
-*Acceptance Criteria:* Relevant expense records are retrieved and passed as context to the LLM; answer is grounded in actual house data, not hallucinated.
-
-**Story 16: Chatbot Guardrails**
-As a Developer, I want the chatbot restricted to calling only approved internal functions so that it can never bypass validation or write to the database directly.
-*Acceptance Criteria:* All chatbot actions route through existing controllers/middleware; unauthorized or malformed function calls are rejected.
+### Sprint 4: AI Chatbot Assistant & Vision OCR (The Smart Layer)
+- **Story 12: Natural Language Expense Entry:** Gemini parses natural language and executes `add_expense` tool call.
+- **Story 13: Conversational Balances:** Query live balance summary conversationally via `get_balances`.
+- **Story 14: Settlement Suggestions:** Query `get_settlements` for minimal payment paths.
+- **Story 15: Spending Insights (RAG):** Context builder (`ragContext.js`) feeds summarized historical house data to Gemini for spending queries.
+- **Story 16: Receipt Vision OCR:** Upload receipt image and auto-extract expense fields via Gemini 1.5 Vision API.
+- **Story 17: Chatbot Guardrails:** Ensure tool calls strictly execute internal services with zero direct DB writes.

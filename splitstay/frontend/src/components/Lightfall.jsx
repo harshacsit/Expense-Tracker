@@ -5,7 +5,7 @@ import './Lightfall.css';
 const MAX_COLORS = 8;
 
 const hexToRGB = hex => {
-  const c = hex.replace('#', '').padEnd(6, '0');
+  const c = (hex || '#000000').replace('#', '').padEnd(6, '0');
   const r = parseInt(c.slice(0, 2), 16) / 255;
   const g = parseInt(c.slice(2, 4), 16) / 255;
   const b = parseInt(c.slice(4, 6), 16) / 255;
@@ -200,7 +200,10 @@ const Lightfall = ({
   mouseRadius = 1,
   mouseDampening = 0.15,
   lightMode = false,
-  mixBlendMode
+  mixBlendMode,
+  color1,
+  color2,
+  color3
 }) => {
   const containerRef = useRef(null);
   const rafRef = useRef(null);
@@ -211,9 +214,14 @@ const Lightfall = ({
   const mouseTargetRef = useRef([0, 0]);
   const lastTimeRef = useRef(0);
 
+  // Combine color1, color2, color3 if provided alongside or in place of colors
+  const activeColors = (color1 || color2 || color3)
+    ? [color1, color2, color3].filter(Boolean)
+    : colors;
+
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) return () => {};
 
     let renderer;
     try {
@@ -224,7 +232,7 @@ const Lightfall = ({
       });
     } catch (err) {
       console.warn('WebGL initialization skipped or not supported:', err);
-      return;
+      return () => {};
     }
 
     rendererRef.current = renderer;
@@ -236,7 +244,7 @@ const Lightfall = ({
     canvas.style.display = 'block';
     container.appendChild(canvas);
 
-    const { arr, count, avg } = prepColors(colors);
+    const { arr, count, avg } = prepColors(activeColors);
 
     const uniforms = {
       iResolution: { value: [gl.drawingBufferWidth || 1, gl.drawingBufferHeight || 1, 1] },
@@ -279,7 +287,11 @@ const Lightfall = ({
       meshRef.current = mesh;
     } catch (e) {
       console.error('Lightfall shader compile error:', e);
-      return;
+      // Always return a cleanup fn — React StrictMode double-invokes effects
+      // and stores the return value; undefined causes "destroy is not a function"
+      if (canvas && canvas.parentElement === container) container.removeChild(canvas);
+      rendererRef.current = null;
+      return () => {};
     }
 
     const resize = () => {
@@ -295,6 +307,7 @@ const Lightfall = ({
     ro.observe(container);
 
     const onPointerMove = e => {
+      if (!canvas || !renderer) return;
       const rect = canvas.getBoundingClientRect();
       const scale = renderer.dpr || 1;
       const x = (e.clientX - rect.left) * scale;
@@ -306,6 +319,7 @@ const Lightfall = ({
     };
 
     if (mouseInteraction) {
+      canvas.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointermove', onPointerMove);
     }
 
@@ -338,7 +352,10 @@ const Lightfall = ({
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (mouseInteraction) window.removeEventListener('pointermove', onPointerMove);
+      if (mouseInteraction) {
+        canvas.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointermove', onPointerMove);
+      }
       ro.disconnect();
       if (canvas.parentElement === container) {
         container.removeChild(canvas);
@@ -360,7 +377,7 @@ const Lightfall = ({
   }, [
     dpr,
     paused,
-    colors,
+    JSON.stringify(activeColors),
     backgroundColor,
     speed,
     streakCount,

@@ -79,6 +79,68 @@ const formatGeminiHistory = (rawHistory, currentMessage) => {
 };
 
 /**
+ * Deterministic formatters for function results.
+ * Guarantees a clean, friendly response even if Gemini's 2nd call hits 429 or schema errors.
+ */
+const formatBalanceReply = (balances, currentUserId) => {
+  if (!balances || balances.length === 0) {
+    return 'No balances recorded yet. Add some expenses to see who owes whom!';
+  }
+  const lines = ['Here are the current balances for everyone in the house:\n'];
+  balances.forEach((b) => {
+    const isMe = String(b.userId) === String(currentUserId);
+    const who = isMe ? `${b.name} (you)` : b.name;
+    if (b.netBalance > 0.005) {
+      lines.push(`• **${who}** is owed **₹${b.netBalance.toFixed(2)}** (Paid: ₹${b.totalPaid.toFixed(2)}, Share: ₹${b.totalOwed.toFixed(2)})`);
+    } else if (b.netBalance < -0.005) {
+      lines.push(`• **${who}** owes **₹${Math.abs(b.netBalance).toFixed(2)}** (Paid: ₹${b.totalPaid.toFixed(2)}, Share: ₹${b.totalOwed.toFixed(2)})`);
+    } else {
+      lines.push(`• **${who}** is all settled up ✓`);
+    }
+  });
+  return lines.join('\n');
+};
+
+const formatSettlementReply = (suggestions) => {
+  if (!suggestions || suggestions.length === 0) {
+    return 'All debts are fully settled! Everyone is even — no payments are needed right now. 🎉';
+  }
+  const lines = ['Here is the easiest way to settle all debts with the minimum number of payments:\n'];
+  suggestions.forEach((s) => {
+    lines.push(`• **${s.fromName}** pays **${s.toName}** ₹${s.amount.toFixed(2)}`);
+  });
+  return lines.join('\n');
+};
+
+/**
+ * Fallback direct intent handler if LLM is rate-limited (e.g. 429 Too Many Requests)
+ */
+const fallbackIntentHandler = async (userMessage, context, ragContext) => {
+  const lower = userMessage.toLowerCase();
+  if (lower.includes('balance') || lower.includes('owe') || lower.includes('debt') || lower.includes('who owes')) {
+    const result = await routeIntent('getBalances', {}, context);
+    return {
+      reply: formatBalanceReply(result.balances, context.userId),
+      action: { function: 'getBalances', result },
+    };
+  }
+  if (lower.includes('settle') || lower.includes('pay back') || lower.includes('clear')) {
+    const result = await routeIntent('suggestSettlements', {}, context);
+    return {
+      reply: formatSettlementReply(result.suggestions),
+      action: { function: 'suggestSettlements', result },
+    };
+  }
+  if (ragContext) {
+    return {
+      reply: ragContext,
+      action: null,
+    };
+  }
+  return null;
+};
+
+/**
  * @param {string} userMessage - The raw message from the user
  * @param {string[]} conversationHistory - Array of {role, content} prior messages
  * @param {object} context - { houseId, userId, members }
@@ -88,7 +150,7 @@ const processMessage = async (userMessage, conversationHistory = [], context) =>
   const { houseId } = context;
 
   // Build RAG context for insight-type questions
-  const insightKeywords = ['spend', 'spent', 'more', 'less', 'month', 'trend', 'most', 'breakdown'];
+  const insightKeywords = ['spend', 'spent', 'more', 'less', 'month', 'trend', 'most', 'breakdown', 'summary', 'history', 'expense', 'total'];
   const needsContext = insightKeywords.some((kw) => userMessage.toLowerCase().includes(kw));
   let ragContext = '';
   if (needsContext) {
@@ -102,55 +164,92 @@ const processMessage = async (userMessage, conversationHistory = [], context) =>
   // Convert and sanitize prior history for Gemini
   const geminiHistory = formatGeminiHistory(conversationHistory, userMessage);
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: systemWithContext,
-    tools: [{ functionDeclarations: GEMINI_TOOLS }],
-  });
+  const CANDIDATE_MODELS = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+  let lastError = null;
 
-  const chat = model.startChat({ history: geminiHistory });
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemWithContext,
+        tools: [{ functionDeclarations: GEMINI_TOOLS }],
+      });
 
-  // --- First LLM call ---
-  const result = await chat.sendMessage(userMessage);
-  const response = result.response;
+      const chat = model.startChat({ history: geminiHistory });
 
-  // Check for function call
-  const candidate = response.candidates?.[0];
-  const functionCallPart = candidate?.content?.parts?.find((p) => p.functionCall);
+      // --- First LLM call ---
+      const result = await chat.sendMessage(userMessage);
+      const response = result.response;
 
-  if (!functionCallPart) {
-    // Pure text response — no function call needed
-    const text = response.text();
-    return { reply: text || 'I could not generate a response.', action: null };
+      // Check for function call
+      const candidate = response.candidates?.[0];
+      const functionCallPart = candidate?.content?.parts?.find((p) => p.functionCall);
+
+      if (!functionCallPart) {
+        // Pure text response — no function call needed
+        const text = response.text();
+        return { reply: text || 'I could not generate a response.', action: null };
+      }
+
+      const { name: fnName, args: fnArgs } = functionCallPart.functionCall;
+
+      // --- Route tool call through intentRouter ---
+      let toolResult;
+      let toolError = null;
+      try {
+        toolResult = await routeIntent(fnName, fnArgs, context);
+      } catch (err) {
+        toolError = err.message;
+        toolResult = { success: false, error: toolError };
+      }
+
+      // --- Second LLM call with function result (optional natural language polish) ---
+      let finalText = '';
+      try {
+        const functionResponsePart = {
+          functionResponse: {
+            name: fnName,
+            response: toolResult,
+          },
+        };
+
+        const finalResult = await chat.sendMessage([functionResponsePart]);
+        finalText = finalResult.response?.text?.();
+      } catch (secondCallErr) {
+        console.warn(`[Chatbot] Second LLM call skipped (${secondCallErr.message}), using deterministic formatter`);
+      }
+
+      // If second call failed (e.g. role: 'function' unsupported or 429), use guaranteed formatter
+      if (!finalText) {
+        if (fnName === 'addExpense') {
+          finalText = toolResult.message || `Expense added! ₹${fnArgs.amount} for ${fnArgs.category}.`;
+        } else if (fnName === 'getBalances') {
+          finalText = formatBalanceReply(toolResult.balances, context.userId);
+        } else if (fnName === 'suggestSettlements') {
+          finalText = formatSettlementReply(toolResult.suggestions);
+        } else {
+          finalText = 'Action completed successfully.';
+        }
+      }
+
+      return {
+        reply: finalText,
+        action: toolError ? null : { function: fnName, result: toolResult },
+      };
+    } catch (err) {
+      console.warn(`Gemini model ${modelName} failed:`, err.message);
+      lastError = err;
+      continue;
+    }
   }
 
-  const { name: fnName, args: fnArgs } = functionCallPart.functionCall;
-
-  // --- Route tool call through intentRouter ---
-  let toolResult;
-  let toolError = null;
-  try {
-    toolResult = await routeIntent(fnName, fnArgs, context);
-  } catch (err) {
-    toolError = err.message;
-    toolResult = { success: false, error: toolError };
+  // If all Gemini models failed (e.g. rate-limited 429 across models), check deterministic fallback
+  const fallback = await fallbackIntentHandler(userMessage, context, ragContext);
+  if (fallback) {
+    return fallback;
   }
 
-  // --- Second LLM call with function result ---
-  const functionResponsePart = {
-    functionResponse: {
-      name: fnName,
-      response: toolResult,
-    },
-  };
-
-  const finalResult = await chat.sendMessage([functionResponsePart]);
-  const finalText = finalResult.response.text();
-
-  return {
-    reply: finalText || 'Done.',
-    action: toolError ? null : { function: fnName, result: toolResult },
-  };
+  throw lastError || new Error('All Gemini models failed to respond');
 };
 
 module.exports = { processMessage };

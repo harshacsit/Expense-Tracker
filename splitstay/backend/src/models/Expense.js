@@ -11,7 +11,7 @@ const expenseSchema = new mongoose.Schema(
       enum: ['Rent', 'Groceries', 'Utilities', 'Internet', 'Cooking Gas', 'Entertainment', 'Other'],
     },
     description: { type: String, trim: true },
-    splitType: { type: String, enum: ['equal', 'custom'], default: 'equal' },
+    splitType: { type: String, enum: ['equal', 'custom', 'percentage', 'exact'], default: 'equal' },
     date: { type: Date, default: Date.now },
   },
   { timestamps: true }

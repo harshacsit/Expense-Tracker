@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { sendChatMessage } from '../api/chatbotApi'
 
-export const useChatbot = (houseId) => {
+export const useChatbot = (houseId, onExpenseAdded) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -19,14 +19,19 @@ export const useChatbot = (houseId) => {
     setLoading(true)
 
     try {
-      // Build history for Gemini context (prior messages, excluding the current pending one)
+      // Build history for Gemini context (prior messages, excluding error messages)
       const history = messages
         .slice(-10)
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .filter((m) => (m.role === 'user' || m.role === 'assistant') && !m.content?.startsWith('❌'))
         .map((m) => ({ role: m.role, content: m.content }))
 
       const { data } = await sendChatMessage(houseId, text, history)
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply, action: data.action }])
+
+      // If an expense was logged via AI, trigger dashboard refetch
+      if (data.action?.function === 'addExpense') {
+        onExpenseAdded?.()
+      }
     } catch (err) {
       const errorText = err.response?.data?.message || '❌ Sorry, I encountered an error. Please try again.'
       setMessages((prev) => [

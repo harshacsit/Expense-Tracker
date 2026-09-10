@@ -1,0 +1,90 @@
+================================================================================
+SPLITSTAY - PROJECT REVIEW & TECHNICAL EVALUATION REPORT
+Shared Roommate Expense Tracker with Conversational AI Assistant
+================================================================================
+
+1. EXECUTIVE SUMMARY & VALUE PROPOSITION
+--------------------------------------------------------------------------------
+SplitStay is a full-stack shared roommate expense-tracking and debt-simplification 
+platform built with React 18 + Vite on the frontend and Node.js/Express + MongoDB Atlas 
+on the backend, enhanced with Google Gemini 1.5 function-calling AI.
+
+Core Differentiator:
+Traditional expense splitters (Splitwise, Tricount, Settle Up) are strictly form-driven. 
+SplitStay introduces a conversational AI assistant:
+- Roommates can log complex expenses in natural language (e.g. "I paid 1200 for groceries, split equally").
+- Query live balances directly ("How much do I owe?", "Who paid for internet?").
+- Receive actionable settlement guidance without navigating through complicated multi-step menus.
+
+
+2. ARCHITECTURAL OVERVIEW & TECH STACK
+--------------------------------------------------------------------------------
+- Frontend:
+  * Framework: React 18 with Vite 5
+  * Styling: Tailwind CSS + Glassmorphism design system
+  * Visuals & 3D: WebGL via OGL (Orb, Galaxy, Lightfall dynamic canvas components)
+  * Icons: Lucide React
+  * State & Auth: Custom React Context (AuthContext) + Axios HTTP Interceptors
+
+- Backend:
+  * Runtime & Server: Node.js + Express.js REST API
+  * Database: MongoDB Atlas using Mongoose ODM
+  * Authentication: JWT (JSON Web Tokens) with Bearer token authorization + Google OAuth 2.0
+  * Email Service: Resend API for invite codes and balance notifications
+  * AI Layer: Google Gemini 1.5 Pro / Flash with native Tool Function Calling & RAG context
+
+- Architecture Flow:
+  Browser (Vite Client)
+    -> Axios with Bearer JWT
+    -> Express API Routes (/api/auth, /api/houses, /api/expenses, /api/balances, /api/chat)
+    -> House Membership Middleware Guards
+    -> Service Layer (balanceEngine, debtSimplifier, chatbot.service, email.service)
+    -> MongoDB Atlas / Gemini AI
+
+
+3. CORE ALGORITHMIC ENGINES (KEY STRENGTHS)
+--------------------------------------------------------------------------------
+1. Minimum Cash Flow Debt Simplification (debtSimplifier.js):
+   - Solves the multi-roommate debt reduction problem using a greedy minimum cash flow algorithm.
+   - Computes net balance for every house member (total paid minus total owed).
+   - Greedily settles the maximum debtor against the maximum creditor.
+   - Result: N roommates are guaranteed to fully settle their collective debts in at most N - 1 transactions.
+
+2. Robust Split Calculator with Penny/Paise Precision (splitCalculator.js):
+   - Supports Equal, Exact Amount, and Percentage splits.
+   - Implements residual fraction distribution to eliminate floating-point rounding errors.
+   - Fully covered by unit tests (splitCalculator.test.js).
+
+3. Gemini Function-Calling & Intent Routing (chatbot.service.js):
+   - Zero hallucination on numbers: LLM does not fabricate financial balances; it delegates to pre-defined tools (add_expense, get_balances, get_settlements, list_expenses).
+   - Enforces Gemini role alternation (user -> model -> user) with strict history normalization.
+   - Validates house scope and member permissions before executing database modifications.
+
+
+4. UI / UX & AESTHETIC HIGHLIGHTS
+--------------------------------------------------------------------------------
+- Hardware-accelerated WebGL background shaders (Orb, Galaxy, Lightfall) from React Bits.
+- Fluid, glowing neon orb and starfield background for login, registration, and password recovery.
+- Clean dashboard overview displaying Net Balance, Monthly Spend, and Actionable Settlement Cards.
+- Responsive, intuitive tabs for expense splitting (Equal vs Custom percentage).
+- Floating AI Chat Widget with discovery chips for one-click prompts.
+
+
+5. SECURITY & RELIABILITY ASSESSMENT
+--------------------------------------------------------------------------------
+- Authentication: Secure password hashing with bcryptjs (salt rounds = 10) + JWT token expiration.
+- House Isolation: house.middleware.js validates that the authenticated user belongs to the requested house before returning sensitive financial logs.
+- Sensitive Data Protection: .gitignore properly isolates .env credentials, node_modules, build artifacts, and system logs.
+- Network Resilience: Express server binds cleanly to 0.0.0.0 with graceful DB connection timeout handling and port conflict detection.
+
+
+6. RECOMMENDATIONS FOR PRODUCTION READINESS
+--------------------------------------------------------------------------------
+1. Multi-Currency Support:
+   - Add a default currency selector per house (e.g. INR, USD, EUR, GBP) to display native currency symbols dynamically.
+2. Receipt Scanning (OCR):
+   - Leverage Gemini 1.5 Flash Vision capabilities to allow users to take a photo of an invoice/receipt and parse items automatically.
+3. Automated Cron Reminders:
+   - Schedule automated balance summary emails before month-end rent and recurring utilities are due.
+4. Export Options:
+   - Add CSV / PDF export for monthly expense statements.

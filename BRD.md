@@ -1,128 +1,193 @@
 # Business Requirements Document (BRD)
 
-**Project Name:** expense -tracker
+**Project Name:** SplitStay (Shared Roommate Expense Tracker with Conversational AI)
 
-**Objective:** Provide roommates with a shared web-based platform to log group expenses under a single "house" account, automatically calculate each person's fair share, and show who owes whom so bills can be settled easily.
+**Objective:** Provide roommates with a shared web-based platform to log group expenses under a single "house" account, automatically calculate each person's fair share, and show who owes whom so bills can be settled easily and transparently.
 
-## Problem Statement
+---
 
-A standard expense tracker is single-user — an individual logs and monitors only their own spending. This does not work for roommates who share recurring costs (rent, groceries, utilities), since expenses are paid by one person on behalf of the group and must be divided fairly among all members. Without a shared system, roommates rely on manual tracking (spreadsheets, chat messages) to remember who paid for what and who still owes whom, which is error-prone and hard to reconcile over time.
+## 1. Problem Statement
 
-## Solution Overview
+A standard personal expense tracker is single-user — an individual logs and monitors only their own spending. This model fails for roommates who share recurring costs (rent, groceries, electricity, internet, cooking gas), where expenses are paid by one person on behalf of the group and must be divided fairly among all members. 
 
-The application introduces a shared "house" account that multiple users can belong to:
+Without a shared ledger, roommates rely on fragmented, manual tracking (spreadsheets, chat notes, or memory) to track who paid for what and who still owes whom. This leads to mathematical errors, uncomfortable debt reminders, floating-point rounding discrepancies, and friction when reconciling balances over time.
 
-1. **Grouping:** Roommates are linked together under one house account, so expenses are logged against the group, not an individual.
-2. **Shared Expense Logging:** Any member can add an expense on behalf of the house, recording who actually paid.
-3. **Automatic Splitting:** Each expense is divided among members automatically — equally, or by custom shares.
-4. **Balance Netting:** The system nets out what each member paid vs. what they owe across all expenses, producing a clear "who owes whom, how much" view.
-5. **Settlement:** Members can record payments made to each other, which updates the running balance.
+---
 
-This turns manual, error-prone expense splitting into an automated, always-up-to-date shared ledger.
+## 2. Solution Overview
 
-## Functional Requirements
+SplitStay introduces a shared "house" account model designed specifically for communal living:
 
-1. **User Authentication:** Users must be able to sign up and log in securely.
-2. **House/Group Creation:** A user must be able to create a "house" account and invite roommates to join it (via invite code or link).
-3. **Shared Expense Logging:** Any member of a house can add an expense with amount, date, category (Rent, Groceries, Utilities, etc.), and description.
-4. **Split Configuration:** When adding an expense, the user must be able to choose how it's split — equally among all members, or by custom amounts/percentages per member.
-5. **Balance Calculation:** The system must calculate and display real-time balances — how much each member owes or is owed within the house.
-6. **Settlement:** Members must be able to record a "settle up" payment (e.g., "Alex paid Sam ₹500") to clear balances.
-7. **Dashboard:** Members must see a summary of total house spending for the current month and their personal share.
-8. **History:** A list view of past transactions, filterable by member or category, with the ability to edit/delete entries added by the user.
-9. **AI Chatbot Assistant:** Members must be able to interact with an AI chatbot to:
-   - Add expenses using natural language (e.g., "I paid ₹800 for groceries, split equally").
-   - Ask balance-related questions (e.g., "How much does Sam owe me?").
-   - Ask for spending insights (e.g., "Did we spend more on food this month?").
-   - Receive suggestions for the minimum number of payments needed to settle all balances in the house.
+1. **Grouping:** Roommates are linked together under one house account via invite codes, ensuring all expenses are tracked against the collective group rather than an individual.
+2. **Shared Expense Logging:** Any member can add an expense on behalf of the house, recording who paid and the expense category.
+3. **Automatic Splitting:** Each expense is divided among members automatically — equally, by exact shares, or by percentages, with zero floating-point drift.
+4. **Balance Netting:** The system nets out what each member paid vs. what they owe across all house expenses, producing a real-time "who owes whom, how much" view.
+5. **Debt Simplification:** A minimum-cash-flow algorithm calculates the fewest possible payments needed to settle all house debts.
+6. **Settlement:** Members can record payments made to each other, instantly updating the running balances.
+7. **Conversational AI Assistant:** An embedded AI chatbot allows roommates to log expenses, check balances, and receive settlement plans via natural language.
 
-## Non-Functional Requirements
+---
 
-- **Security:** Passwords must be hashed (Bcrypt); users can only access houses they belong to.
-- **Data Integrity:** Balance calculations must remain accurate even if expenses are edited or deleted after creation.
-- **Performance:** Dashboard and balance data must load in under 1 second.
-- **Responsiveness:** Must be fully functional on both mobile and desktop browsers.
-- **Scalability:** A house should support at least 10 members without performance degradation.
-- **Chatbot Reliability:** The chatbot must only perform actions (e.g., adding an expense) through verified backend endpoints, never by writing to the database directly, so all normal validation rules still apply.
+## 3. Why AI, Not Just CRUD (The Core Differentiator)
 
- example for these :
-Here are real-world apps that solve the exact same problem as SplitStay — useful references for your report or to compare features against:
+Traditional expense trackers like Splitwise or Tricount rely exclusively on manual, multi-step CRUD forms. Users must manually select a payer, choose split formulas, input numbers across fields, and navigate sub-menus. For busy roommates, this high-friction entry pattern frequently leads to forgotten receipts and delayed bookkeeping.
 
-Direct Real-World Equivalents
+SplitStay fundamentally transforms expense tracking by treating Conversational AI as a primary interactive interface rather than a cosmetic, bolt-on novelty:
 
-1. Splitwise (most famous example)
+1. **Deterministic Function-Calling for Structured Actions:**
+   - Rather than using AI to hallucinate or manipulate numbers, SplitStay utilizes Google Gemini's native tool function-calling (`add_expense`, `get_balances`, `get_settlements`).
+   - The LLM's role is strictly limited to extracting structured parameters (amount, category, split type, payer) from colloquial human sentences (e.g. *"I paid ₹600 for WiFi, split equally"*).
+   - The resulting parameters are executed against deterministic internal backend business logic and database constraints. The AI **never writes directly to the database** and never fabricates financial balances.
 
-The gold standard for shared expense splitting. Groups (equivalent to your "house"), equal/custom/percentage splits, running balances, "simplify debts" feature (exactly like your debtSimplifier.js), and settlement recording.
-What SplitStay borrows conceptually: the whole Expense → Split → Balance model.
+2. **RAG-Powered Historical Spending Insights:**
+   - Standard CRUD dashboards only answer predefined queries. Through Retrieval-Augmented Generation (RAG), SplitStay builds dynamic contextual summaries of actual house transactions.
+   - Roommates can ask open-ended questions like *"How much did we spend on utilities last month compared to groceries?"* or *"Who covered dinner most frequently this semester?"* and receive instantaneous, contextual answers grounded directly in verified house records.
 
-2. Tricount
+3. **Applied AI in Real Workflows:**
+   - Integrated multimodal OCR receipt scanning auto-populates expense forms directly from photographed bills.
+   - This hybrid design couples the convenience of conversational natural language with the mathematical rigor of a double-entry ledger.
 
-European equivalent of Splitwise, popular for roommates and trip expenses. Strong on multi-currency support and a simple "balance summary" view per person.
+---
 
-3. Settle Up
+## 4. Functional Requirements
 
-Similar to Splitwise but with more customizable split types (shares, percentages, exact amounts) and group-based permissions — close to your HouseMember + ExpenseShare design.
+1. **User Authentication & Management:**
+   - Secure email/password registration and login with encrypted credentials.
+   - Optional Google OAuth 2.0 social sign-in.
+   - Password recovery via secure email reset links.
+2. **House/Group Management:**
+   - Create a house and generate a unique alphanumeric invite code.
+   - Join an existing house using an invite code.
+   - Switch between multiple houses from the top navigation.
+3. **Shared Expense Logging:**
+   - Record expenses with amount, date, category (Rent, Groceries, Utilities, Internet, Cooking Gas, Entertainment, Other), and description.
+   - Support one-click receipt photo scanning with automatic optical parsing.
+4. **Split Configuration & Precision:**
+   - Support **Equal**, **Exact Amount**, and **Percentage** splits across all house members.
+   - Enforce residual fraction distribution so the sum of all individual shares exactly equals the expense total with zero penny/paise loss.
+5. **Real-Time Balance Calculation:**
+   - Automatically compute each member's net balance: `(total paid) - (total owed) + (settlements given) - (settlements received)`.
+   - Display who owes money (debtors) and who is owed money (creditors).
+6. **Settlement & Debt Simplification:**
+   - Suggest the minimum number of transactions to clear all debts ($N - 1$ guarantee).
+   - Record "settle up" payments between members to zero out balances.
+7. **Dashboard & History:**
+   - Monthly total spending breakdown and personal share summary.
+   - Searchable, filterable transaction history with edit and delete capabilities.
+   - Export records to CSV spreadsheet or styled printable PDF statements.
+8. **AI Chatbot Assistant:**
+   - Natural language expense entry (e.g., *"I paid ₹1,200 for groceries, split equally"*).
+   - Conversational balance queries (e.g., *"How much do I owe?", "Who paid for internet?"*).
+   - Spending insights and budget summaries via Retrieval-Augmented Generation (RAG).
+   - On-demand debt simplification suggestions.
 
-4. Venmo / Cash App (group payments feature)
+---
 
-Not expense-splitting-first, but widely used informally by roommates to actually settle balances after calculating them elsewhere — this is the real-world analog to your Settlement model, minus the automatic calculation.
-Where SplitStay Differentiates (your AI chatbot angle)
+## 5. UI/UX Design, Accessibility & PWA
 
-None of the big three (Splitwise, Tricount, Settle Up) have a conversational AI assistant for adding expenses or asking balance questions in natural language — they're all form-based. That's a genuinely novel angle you can highlight in your report:
+SplitStay features a modern, user-centric interface built on contemporary design principles:
 
-Feature	Splitwise	Tricount	Settle Up	SplitStay
-Shared house/group	✅	✅	✅	✅
-Equal/custom splits	✅	✅	✅	✅
-Debt simplification	✅	❌	✅	✅
-Natural-language expense entry via chatbot	❌	❌	❌	✅
-RAG-based spending insights	❌	❌	❌	✅
+- **Glassmorphism Design System:** Tailored dark theme with semi-transparent frosted-glass containers (`backdrop-blur-xl`), subtle borders (`rgba(255, 255, 255, 0.08)`), and purple-indigo gradient accents.
+- **Animated WebGL Background Visuals:** Hardware-accelerated dynamic shaders (such as the interactive glowing `Orb`, `Galaxy` starfield, and `Lightfall` streams from React Bits) providing a fluid aesthetic on authentication screens (Login, Register, Forgot Password, Reset Password).
+- **Comprehensive Dashboard:**
+  - **Summary Cards:** Immediate display of Net Balance (*You are owed* vs *You owe*), Total Monthly House Spend, and Active Members.
+  - **Actionable Settlement Cards:** One-click "Settle Up" modal pre-filled with the creditor, debtor, and exact amount.
+- **Responsive Split Entry Tabs:** Dedicated tabs inside the expense modal for switching seamlessly between **Equal Split**, **Exact Amount**, and **Percentage Split**.
+- **Floating AI Chat Widget:** Persistent bottom-right chat bubble (`ChatWidget.jsx`) equipped with quick-prompt suggestion chips (e.g., *"Add expense"*, *"Check balance"*, *"Settle up"*, *"Monthly summary"*) for rapid conversational interaction.
+- **Mobile-First Responsive Design:** Fluid layouts optimized for touch interactions on smartphones and tablets, scaling cleanly to high-resolution desktop viewports.
+- **Progressive Web App (PWA) Capabilities:**
+  - Installable application shell with standalone manifest and home screen icon support.
+  - Offline-first caching of essential static assets and recently fetched house balances for offline reference.
+- **Accessibility & Inclusive Design:**
+  - Full keyboard navigability (Tab, Enter, Escape shortcuts across modals and forms).
+  - Explicit ARIA labels (`aria-label`, `aria-hidden`, role attributes) on all interactive icons and buttons.
+  - WCAG 2.1 AA compliant color contrast ratios across dark mode text, badges, and state indicators.
 
-Want me to add this comparison table (as a "Competitive Analysis" section) into the BRD, since it strengthens the case for why the project is worth building?
+---
 
-like for you these much expenses  for give me the example
+## 6. Non-Functional Requirements
 
-Here's a concrete worked example — 3 roommates sharing a house for a month:
+- **Security & Authorization:**
+  - **Password Hashing:** Passwords encrypted using `bcryptjs` with salt rounds = 10.
+  - **Token Authentication:** Stateless JWT authentication with signed payloads and strict expiration policies (7-day validity).
+  - **House-Membership Validation:** All financial endpoints guarded by `house.middleware.js` to ensure users can only view or modify data for houses they belong to.
+  - **Repository & Secret Hygiene:** Strict `.gitignore` policy isolating environment secrets (`.env`, `*.env`), dependencies (`node_modules/`), build outputs (`dist/`), and runtime log files.
+  - **Server Reliability:** Server binds to `0.0.0.0` with graceful database connection timeouts (5 seconds) and port conflict listeners (`EADDRINUSE`) to prevent silent startup failures.
+- **Data Integrity:** Balance calculations automatically recalculate when an expense or settlement is created, edited, or deleted.
+- **Performance:** Dashboard metrics and balance queries execute and render in under 1 second.
+- **Cross-Platform Responsiveness:** Fully responsive layout tested on modern mobile browsers, tablets, and desktop viewports.
+- **Chatbot Guardrails:** The chatbot executes deterministic internal tool functions and cannot bypass backend validation or write arbitrary data to the database.
 
-Sample Scenario: "Sunrise Apartments" House (3 members: Anith, Ravi, Priya)
-Expenses Logged
-#	Paid By	Amount	Category	Split Type
-1	Anith	₹3,000	Rent (his share, paid to landlord on behalf of group... let's keep it simple)	—
-2	Ravi	₹1,200	Groceries	Equal
-3	Priya	₹900	Electricity Bill	Equal
-4	Anith	₹600	Internet	Equal
-5	Ravi	₹450	Cooking Gas	Custom (Ravi ₹150, Priya ₹150, Anith ₹150 — same as equal here, but shows the field)
+---
 
-(Let's simplify and treat all 4 shared expenses — #2 to #5 — as equal splits among 3 people, ignoring #1 rent for this example.)
+## 7. Data & Privacy
 
-Split Calculation (equal, 3 people)
-Expense	Amount	Each Person's Share
-Groceries	₹1,200	₹400
-Electricity	₹900	₹300
-Internet	₹600	₹200
-Cooking Gas	₹450	₹150
-Total shared	₹3,150	₹1,050 each
-Balance Calculation
-Person	Total Paid	Total Owed (₹1,050 each)	Net Balance
-Ravi	₹1,650 (₹1,200 + ₹450)	₹1,050	+₹600 (is owed)
-Priya	₹900	₹1,050	−₹150 (owes)
-Anith	₹600	₹1,050	−₹450 (owes)
-Settlement Suggestion (debt simplification)
+User privacy and financial data integrity are central to the SplitStay trust model:
 
-Instead of 2 separate people paying Ravi:
+1. **Personal Data Export:**
+   - Users retain complete ownership of their data. Any house member can export full historical records, including expense details, per-person share breakdowns, and settlement histories, into standardized CSV spreadsheets or printable PDF statements at any time.
+2. **Account Deletion & Right to Be Forgotten:**
+   - Users can initiate account deletion requests. Upon confirmation, user identifiers and personal credentials are permanently purged from the database, while anonymized transaction records remain to preserve the mathematical continuity of shared house ledgers.
+3. **Audit Trail & Attribution:**
+   - Every financial action (expense creation, edits, deletions, and settlements) logs an immutable audit trail capturing `createdAt`, `updatedAt`, `paidById`, and `createdBy` metadata.
+   - House members can inspect precisely who recorded or adjusted each expense, eliminating ambiguous adjustments and dispute friction.
+4. **Settlement-Confirmation Trust Model:**
+   - When a peer-to-peer payment is recorded, both the payer and payee are clearly documented, providing transparent audit confirmation before balances are zeroed.
 
-Anith pays Ravi ₹450
-Priya pays Ravi ₹150
+---
 
-→ 2 transactions, fully settles the house. (This is what debtSimplifier.js would output.)
+## 8. Competitive Analysis
 
-What This Looks Like via the Chatbot
-Anith: "I paid 600 for internet, split equally"
-Bot:   "Got it — ₹600 for internet, split equally between you 3 (₹200 each). Added ✅"
+| Feature | Splitwise | Tricount | Settle Up | SplitStay |
+|---|---|---|---|---|
+| **Shared House / Group Budgets** | ✅ | ✅ | ✅ | ✅ |
+| **Equal & Custom Splits** | ✅ | ✅ | ✅ | ✅ |
+| **Debt Simplification Algorithm** | ✅ | ❌ | ✅ | ✅ |
+| **Natural-Language Expense Entry via Chatbot** | ❌ | ❌ | ❌ | ✅ |
+| **RAG-Based Conversational Spending Insights** | ❌ | ❌ | ❌ | ✅ |
+| **Interactive WebGL Visuals & Glassmorphism** | ❌ | ❌ | ❌ | ✅ |
+| **Receipt OCR Auto-Extraction** | Paid | ❌ | ❌ | ✅ |
 
-Priya: "How much do I owe?"
-Bot:   "You owe ₹150 total in this house — mainly to Ravi."
+---
 
-Ravi: "How should we settle up?"
-Bot:   "Simplest way: Anith pays you ₹450, and Priya pays you ₹150. That clears everyone."
+## 9. Sample Scenario Walkthrough
 
-Want me to add this worked example as a "Sample Walkthrough" section in the BRD or TDD, so it's easier to demo/explain in your viva?
+**Scenario:** "Sunrise Apartments" House (3 members: Anith, Ravi, Priya)
+
+### Shared Expenses Logged:
+1. **Ravi** paid ₹1,200 for Groceries (Split equally among 3 = ₹400 each).
+2. **Priya** paid ₹900 for Electricity Bill (Split equally among 3 = ₹300 each).
+3. **Anith** paid ₹600 for Internet (Split equally among 3 = ₹200 each).
+4. **Ravi** paid ₹450 for Cooking Gas (Split equally among 3 = ₹150 each).
+
+- **Total Shared Spend:** ₹3,150
+- **Fair Share per Person:** ₹1,050
+
+### Balance Breakdown:
+- **Ravi:** Paid ₹1,650 − Owed ₹1,050 = **+₹600** (Net Creditor)
+- **Priya:** Paid ₹900 − Owed ₹1,050 = **−₹150** (Net Debtor)
+- **Anith:** Paid ₹600 − Owed ₹1,050 = **−₹450** (Net Debtor)
+
+### Simplified Debt Settlement:
+Instead of multiple circular payments, the minimum cash flow algorithm resolves all balances in **2 transactions**:
+1. **Anith pays Ravi ₹450**
+2. **Priya pays Ravi ₹150**
+*(All house debts cleared to ₹0.00)*
+
+---
+
+## 10. Future Enhancements & Production Roadmap
+
+The following post-MVP features are identified for future product iterations:
+
+1. **Multi-Currency Support:**
+   - Configurable per-house default currency selector (`INR (₹)`, `USD ($)`, `EUR (€)`, `GBP (£)`).
+   - Real-time conversion rates for international or vacation travel houses.
+2. **Receipt Scanning via OCR / Vision AI:**
+   - Upload paper receipts or digital bills directly in the chat widget or expense modal.
+   - Use Google Gemini Vision to automatically extract merchant, date, total amount, and line-item splits.
+3. **Automated Balance Reminders & Notifications:**
+   - Scheduled automated email reminders via Resend before month-end rent and recurring utilities are due.
+   - Push notifications for new expenses and settlement confirmations.
+4. **Export & Reporting:**
+   - Generate and download monthly CSV and branded PDF expense statements for tax records or landlord reconciliations.

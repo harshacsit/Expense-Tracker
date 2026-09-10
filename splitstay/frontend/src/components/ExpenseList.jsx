@@ -16,11 +16,11 @@ const categoryConfig = {
 const formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 
-export default function ExpenseList({ expenses, onDelete }) {
+export default function ExpenseList({ expenses, onDelete, currencySymbol = '₹' }) {
   const { user } = useAuth()
 
   const handleDelete = async (expense) => {
-    if (!confirm(`Delete "${expense.category}" expense of ₹${expense.amount}?`)) return
+    if (!confirm(`Delete "${expense.category}" expense of ${currencySymbol}${expense.amount}?`)) return
     try {
       await axiosClient.delete(`/expenses/${expense._id}`)
       toast.success('Expense deleted')
@@ -44,7 +44,9 @@ export default function ExpenseList({ expenses, onDelete }) {
       {expenses.map((exp) => {
         const config = categoryConfig[exp.category] || categoryConfig.Other
         const Icon = config.icon
-        const isOwner = exp.paidById?._id === user?._id || exp.paidById === user?._id
+        const payerId = String(exp.paidById?._id || exp.paidById || '')
+        const currentUserId = String(user?._id || '')
+        const isOwner = Boolean(payerId && currentUserId && payerId === currentUserId)
 
         return (
           <div key={exp._id} className="glass-hover rounded-xl p-4 flex items-center gap-4">
@@ -70,9 +72,13 @@ export default function ExpenseList({ expenses, onDelete }) {
 
             {/* Amount */}
             <div className="text-right shrink-0">
-              <p className="font-bold text-lg">₹{exp.amount.toLocaleString('en-IN')}</p>
+              <p className="font-bold text-lg">{currencySymbol}{exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               {exp.shares && exp.shares.length > 0 && (
-                <p className="text-xs text-white/30">₹{(exp.amount / exp.shares.length).toFixed(2)} each</p>
+                <p className="text-xs text-white/30">
+                  {exp.splitType === 'equal'
+                    ? `${currencySymbol}${(exp.amount / exp.shares.length).toFixed(2)} each`
+                    : `${exp.shares.length} shares`}
+                </p>
               )}
             </div>
 

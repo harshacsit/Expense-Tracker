@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { Lock, Home, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react'
-import Lightfall from '../components/Lightfall'
+import Orb from '../components/Orb'
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams()
@@ -52,24 +52,14 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
-      {/* Dynamic Lightfall WebGL Background */}
-      <div className="fixed inset-0 pointer-events-auto z-0 opacity-80">
-        <Lightfall
-          colors={['#A6C8FF', '#5227FF', '#FF9FFC']}
-          backgroundColor="#080b24"
-          speed={0.5}
-          streakCount={2}
-          streakWidth={1}
-          streakLength={1}
-          glow={1}
-          density={0.6}
-          twinkle={1}
-          zoom={3}
-          backgroundGlow={0.5}
-          opacity={0.85}
-          mouseInteraction
-          mouseStrength={0.5}
-          mouseRadius={1}
+      {/* Interactive Glowing Orb WebGL Background */}
+      <div className="fixed inset-0 pointer-events-auto z-0 flex items-center justify-center overflow-hidden">
+        <Orb
+          hoverIntensity={0.5}
+          rotateOnHover={true}
+          hue={0}
+          forceHoverState={false}
+          backgroundColor="#000000"
         />
       </div>
 

@@ -2,6 +2,7 @@ const House = require('../models/House');
 const HouseMember = require('../models/HouseMember');
 const User = require('../models/User');
 const { generateInviteCode } = require('../utils/generateInviteCode');
+const { calculateBalances } = require('../services/balanceEngine');
 
 // @desc  Create a new house
 // @route POST /api/houses
@@ -83,4 +84,60 @@ const getMembers = async (req, res) => {
   }
 };
 
-module.exports = { createHouse, joinHouse, getMyHouses, getHouse, getMembers };
+// @desc  Update house currency
+// @route PUT /api/houses/:id/currency
+const updateCurrency = async (req, res) => {
+  try {
+    const { currency } = req.body;
+    const allowed = ['INR', 'USD', 'EUR', 'GBP'];
+    if (!allowed.includes(currency)) {
+      return res.status(400).json({ message: `Currency must be one of: ${allowed.join(', ')}` });
+    }
+
+    const house = await House.findByIdAndUpdate(
+      req.params.id,
+      { currency },
+      { new: true }
+    );
+    if (!house) return res.status(404).json({ message: 'House not found' });
+
+    res.json({ message: 'Currency updated successfully', house });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc  Leave house (with unsettled balance guard - TDD §11)
+// @route POST /api/houses/:id/leave
+const leaveHouse = async (req, res) => {
+  try {
+    const houseId = req.params.id;
+    const userId = req.user._id;
+
+    // Load members and verify balance is zero
+    const memberships = await HouseMember.find({ houseId }).populate('userId', 'name email _id');
+    const members = memberships.map((m) => m.userId);
+
+    const balances = await calculateBalances(houseId, members);
+    const myBalance = balances.find((b) => b.userId.toString() === userId.toString());
+
+    if (myBalance && Math.abs(myBalance.netBalance) > 0.01) {
+      const owes = myBalance.netBalance < -0.01;
+      return res.status(400).json({
+        message: owes
+          ? `Cannot leave house with an unsettled debt of ₹${Math.abs(myBalance.netBalance).toFixed(2)}. Please settle up first.`
+          : `Cannot leave house while you are still owed ₹${myBalance.netBalance.toFixed(2)}. Please settle up first.`,
+        netBalance: myBalance.netBalance,
+      });
+    }
+
+    // Balance is settled — remove membership
+    await HouseMember.findOneAndDelete({ houseId, userId });
+
+    res.json({ message: 'Successfully left the house.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { createHouse, joinHouse, getMyHouses, getHouse, getMembers, updateCurrency, leaveHouse };

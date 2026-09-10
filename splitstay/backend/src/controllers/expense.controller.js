@@ -2,13 +2,18 @@ const Expense = require('../models/Expense');
 const ExpenseShare = require('../models/ExpenseShare');
 const HouseMember = require('../models/HouseMember');
 const User = require('../models/User');
-const { calculateEqualSplit, calculateCustomSplit } = require('../services/splitCalculator');
+const {
+  calculateEqualSplit,
+  calculatePercentageSplit,
+  calculateCustomSplit,
+} = require('../services/splitCalculator');
+const { scanReceiptImage } = require('../services/receiptScanner.service');
 
 // @desc  Add a new expense to a house
 // @route POST /api/houses/:id/expenses
 const addExpense = async (req, res) => {
   try {
-    const { amount, category, description, splitType, customShares } = req.body;
+    const { amount, category, description, splitType, customShares, percentageShares } = req.body;
     const houseId = req.params.id;
 
     if (!amount || !category) {
@@ -27,7 +32,9 @@ const addExpense = async (req, res) => {
     // Calculate splits
     let shares;
     try {
-      if (splitType === 'custom' && customShares) {
+      if (splitType === 'percentage' && (percentageShares || customShares)) {
+        shares = calculatePercentageSplit(amount, percentageShares || customShares);
+      } else if ((splitType === 'custom' || splitType === 'exact') && customShares) {
         shares = calculateCustomSplit(amount, customShares);
       } else {
         shares = calculateEqualSplit(amount, memberIds);
@@ -71,11 +78,17 @@ const addExpense = async (req, res) => {
 // @route GET /api/houses/:id/expenses
 const getExpenses = async (req, res) => {
   try {
-    const { category, member, page = 1, limit = 20 } = req.query;
+    const { category, member, page = 1, limit = 20, search } = req.query;
     const filter = { houseId: req.params.id };
 
     if (category) filter.category = category;
     if (member) filter.paidById = member;
+    if (search && search.trim()) {
+      filter.$or = [
+        { description: { $regex: search.trim(), $options: 'i' } },
+        { category: { $regex: search.trim(), $options: 'i' } },
+      ];
+    }
 
     const expenses = await Expense.find(filter)
       .populate('paidById', 'name email')
@@ -120,4 +133,21 @@ const deleteExpense = async (req, res) => {
   }
 };
 
-module.exports = { addExpense, getExpenses, deleteExpense };
+// @desc  Scan a receipt image using Gemini Vision OCR and extract expense details
+// @route POST /api/houses/:id/expenses/scan-receipt
+const scanReceipt = async (req, res) => {
+  try {
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ message: 'No receipt image provided' });
+    }
+
+    const parsed = await scanReceiptImage(imageBase64, mimeType || 'image/jpeg');
+    res.json({ success: true, parsed });
+  } catch (error) {
+    console.error('Receipt scanning error:', error);
+    res.status(500).json({ message: error.message || 'Failed to analyze receipt image' });
+  }
+};
+
+module.exports = { addExpense, getExpenses, deleteExpense, scanReceipt };

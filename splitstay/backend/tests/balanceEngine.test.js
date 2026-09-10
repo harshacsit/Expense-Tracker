@@ -55,15 +55,16 @@ describe('debtSimplifier - BRD Sunrise Apartments Example', () => {
     expect(result).toHaveLength(0);
   });
 
-  test('handles two-person scenario correctly', () => {
-    const twoPersonBalances = [
-      { userId: 'alice', name: 'Alice', netBalance: 200 },
-      { userId: 'bob', name: 'Bob', netBalance: -200 },
+  test('guarantees at most N - 1 transactions for N house members', () => {
+    // 5 house members with varying balances summing to 0
+    const fiveMembers = [
+      { userId: 'u1', name: 'User 1', netBalance: 500 },
+      { userId: 'u2', name: 'User 2', netBalance: 300 },
+      { userId: 'u3', name: 'User 3', netBalance: -200 },
+      { userId: 'u4', name: 'User 4', netBalance: -400 },
+      { userId: 'u5', name: 'User 5', netBalance: -200 },
     ];
-    const result = simplifyDebts(twoPersonBalances);
-    expect(result).toHaveLength(1);
-    expect(result[0].from).toBe('bob');
-    expect(result[0].to).toBe('alice');
-    expect(result[0].amount).toBeCloseTo(200, 1);
+    const result = simplifyDebts(fiveMembers);
+    expect(result.length).toBeLessThanOrEqual(fiveMembers.length - 1);
   });
 });

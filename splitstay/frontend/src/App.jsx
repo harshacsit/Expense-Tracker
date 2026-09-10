@@ -9,14 +9,16 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import OAuthCallback from './pages/OAuthCallback'
 
-// Protected route wrapper
+// Protected route wrapper — waits for auth to load before deciding
 const PrivateRoute = ({ children }) => {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  if (loading) return null // AuthProvider already renders a spinner while loading
   return user ? children : <Navigate to="/login" replace />
 }
 
 const PublicRoute = ({ children }) => {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  if (loading) return null
   return !user ? children : <Navigate to="/dashboard" replace />
 }
 
