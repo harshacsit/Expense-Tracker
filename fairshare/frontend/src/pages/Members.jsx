@@ -1,21 +1,42 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { Users, UserPlus, Copy, Check, MoreVertical, Crown } from 'lucide-react'
+import AppLayout from '../components/AppLayout'
+import { Users, UserPlus, Copy, Check, Crown, Mail, Shield } from 'lucide-react'
 
-export default function Members({ house }) {
+export default function Members({ house: propHouse }) {
   const { user } = useAuth()
+  const [house, setHouse] = useState(() => {
+    if (propHouse) return propHouse
+    const stored = localStorage.getItem('fairshare_house') || localStorage.getItem('splitstay_house')
+    return stored ? JSON.parse(stored) : null
+  })
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // Fetch house if not present
+  useEffect(() => {
+    if (!house) {
+      axiosClient
+        .get('/houses')
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setHouse(data[0])
+            localStorage.setItem('fairshare_house', JSON.stringify(data[0]))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [house])
 
   const loadMembers = useCallback(async () => {
     if (!house?._id) return
     setLoading(true)
     try {
       const { data } = await axiosClient.get(`/houses/${house._id}/members`)
-      setMembers(data)
+      setMembers(data || [])
     } catch (err) {
       toast.error('Failed to load house members')
     } finally {
@@ -44,102 +65,113 @@ export default function Members({ house }) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-navy-900 tracking-tight">House Members</h1>
-          <p className="text-slate-500 text-xs mt-0.5">Manage your house members.</p>
-        </div>
-        <button
-          onClick={handleCopyCode}
-          className="btn-primary flex items-center gap-2"
-        >
-          <UserPlus className="w-4 h-4" /> Invite Member
-        </button>
-      </div>
-
-      {/* Members List Cards */}
-      <div className="bg-white rounded-2xl border border-[#E5DED3] p-6 shadow-card space-y-4">
-        <h2 className="text-sm font-bold text-[#687080] uppercase tracking-wider mb-2">Current Housemates ({members.length})</h2>
-        {members.length > 0 ? (
-          <div className="space-y-3">
-            {members.map((m) => {
-              const memberObj = m.userId && typeof m.userId === 'object' ? m.userId : (m.user || m)
-              const email = memberObj.email || m.email || m.userEmail || ''
-              const name = memberObj.name || m.name || m.userName || (email ? email.split('@')[0] : 'House Member')
-              const isMe = (memberObj._id || m._id) === user?._id || email === user?.email
-              const isAdmin = m.role === 'admin' || m.role === 'owner'
-
-              return (
-                <div
-                  key={m._id || m.id || email}
-                  className="flex items-center justify-between p-4 rounded-xl border border-[#E5DED3] bg-white hover:bg-[#F2EEE7] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#5F402B] text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
-                      {getInitials(name)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-[#172033] text-sm">
-                          {name} {isMe ? '(You)' : ''}
-                        </p>
-                        {isAdmin && (
-                          <Crown className="w-3.5 h-3.5 text-amber-600" title="House Creator / Admin" />
-                        )}
-                      </div>
-                      {email ? (
-                        <p className="text-xs text-[#687080] font-medium">{email}</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      isAdmin
-                        ? 'bg-[#E6F4ED] text-[#2F9B70] border border-[#BBE3D0]'
-                        : 'bg-[#F2EEE7] text-[#5F402B] border border-[#E5DED3]'
-                    }`}>
-                      {isAdmin ? 'Owner' : 'Member'}
-                    </span>
-                    <button className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-[#F2EEE7] transition-colors">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="p-8 text-center text-slate-400 text-xs font-medium border border-dashed border-[#E5DED3] rounded-xl space-y-2 bg-[#F2EEE7]/30">
-            <Users className="w-10 h-10 text-slate-300 mx-auto" />
-            <p className="font-bold text-[#172033]">No members found</p>
-            <p className="text-[#687080]">Share your invite code to invite housemates to this room.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Invite Member Section Card */}
-      <div className="bg-white rounded-2xl border border-[#E5DED3] p-6 shadow-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-base font-extrabold text-[#172033]">Invite a new member</h3>
-          <p className="text-xs text-[#687080] mt-0.5">Share this code with your friends to join your house.</p>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="px-4 py-2 bg-[#F2EEE7] border border-[#E5DED3] rounded-xl font-mono font-bold text-[#172033] text-sm tracking-wider flex-1 sm:flex-none text-center">
-            {inviteCode}
+    <AppLayout house={house} onSelectHouse={setHouse}>
+      <div className="space-y-6">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-[#172033] tracking-tight">House Members</h1>
+            <p className="text-[#687080] text-xs mt-0.5">Manage and invite roommates sharing your room.</p>
           </div>
           <button
             onClick={handleCopyCode}
-            className="btn-secondary flex items-center gap-2 py-2 px-4"
+            className="btn-primary flex items-center gap-2 shadow-xs"
           >
-            {copied ? <Check className="w-4 h-4 text-[#2F9B70]" /> : <Copy className="w-4 h-4 text-[#5F402B]" />}
-            <span>{copied ? 'Copied' : 'Copy'}</span>
+            {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <UserPlus className="w-4 h-4" />}
+            <span>{copied ? 'Code Copied!' : 'Invite Member'}</span>
           </button>
         </div>
+
+        {/* Invite Code Share Banner */}
+        <div className="bg-white rounded-2xl border border-[#E5DED3] p-6 shadow-card flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#687080]">Room Invite Code</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#E6F4ED] text-[#2F9B70] font-bold text-[10px]">Active</span>
+            </div>
+            <p className="text-sm font-bold text-[#172033] mt-1">
+              Share this unique room code with your roommates so they can join:
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 bg-[#FAF8F4] border border-[#E5DED3] px-4 py-2.5 rounded-xl">
+            <span className="font-mono font-extrabold text-base text-[#5F402B] tracking-wider">{inviteCode}</span>
+            <button
+              onClick={handleCopyCode}
+              className="p-1.5 rounded-lg bg-[#F2EEE7] hover:bg-[#E5DED3] text-[#5F402B] transition-colors"
+              title="Copy code"
+            >
+              {copied ? <Check className="w-4 h-4 text-[#2F9B70]" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Members List Container */}
+        <div className="bg-white rounded-2xl border border-[#E5DED3] shadow-card overflow-hidden">
+          <div className="p-4 border-b border-[#E5DED3] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#5F402B]" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[#172033]">
+                Total Members ({members.length})
+              </span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-12 text-center text-slate-400 text-xs font-medium">
+              Loading members...
+            </div>
+          ) : members.length > 0 ? (
+            <div className="divide-y divide-[#E5DED3]">
+              {members.map((m) => {
+                const memberUser = m.userId || {}
+                const isOwner = m.role === 'admin' || m.role === 'owner'
+                const isMe = memberUser._id === user?._id || memberUser.email === user?.email
+
+                return (
+                  <div key={m._id || memberUser._id} className="p-4 flex items-center justify-between hover:bg-[#F2EEE7]/40 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#5F402B] text-white font-bold text-sm flex items-center justify-center shadow-xs">
+                        {getInitials(memberUser.name)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-[#172033]">
+                            {memberUser.name || 'Member'}
+                          </p>
+                          {isMe && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#F2EEE7] text-[#5F402B] text-[10px] font-bold">
+                              You
+                            </span>
+                          )}
+                          {isOwner && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
+                              <Crown className="w-3 h-3 text-amber-500" /> Admin
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#687080] mt-0.5 flex items-center gap-1">
+                          <Mail className="w-3 h-3 text-slate-400" /> {memberUser.email || 'No email provided'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#FAF8F4] border border-[#E5DED3] text-[#687080]">
+                        Joined {new Date(m.joinedAt || Date.now()).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="p-12 text-center text-slate-400 text-xs">
+              No members found in this room.
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

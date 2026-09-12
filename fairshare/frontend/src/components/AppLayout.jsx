@@ -1,6 +1,7 @@
-﻿import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import axiosClient from '../api/axiosClient'
 import ChatWidget from './ChatWidget'
 import NotificationDropdown from './NotificationDropdown'
 import {
@@ -17,11 +18,11 @@ import {
   User as UserIcon,
   Copy,
   Check,
-  Info
+  Plus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function AppLayout({ children, house, houses = [], onSelectHouse }) {
+export default function AppLayout({ children, house: propHouse, houses: propHouses = [], onSelectHouse }) {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -30,13 +31,42 @@ export default function AppLayout({ children, house, houses = [], onSelectHouse 
   const [roomInfoOpen, setRoomInfoOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Internal state for self-contained usage
+  const [internalHouse, setInternalHouse] = useState(() => {
+    if (propHouse) return propHouse
+    const stored = localStorage.getItem('fairshare_house') || localStorage.getItem('splitstay_house')
+    return stored ? JSON.parse(stored) : null
+  })
+  const [internalHouses, setInternalHouses] = useState(propHouses)
+
+  const house = propHouse || internalHouse
+  const houses = (propHouses && propHouses.length > 0) ? propHouses : internalHouses
+
+  // Fetch houses if not already populated
+  useEffect(() => {
+    if (user && (!house || houses.length === 0)) {
+      axiosClient
+        .get('/houses')
+        .then(({ data }) => {
+          const list = data || []
+          setInternalHouses(list)
+          if (!house && list.length > 0) {
+            setInternalHouse(list[0])
+            localStorage.setItem('fairshare_house', JSON.stringify(list[0]))
+            if (onSelectHouse) onSelectHouse(list[0])
+          }
+        })
+        .catch(() => {})
+    }
+  }, [user, house])
+
   // Notification state
   const [notifications, setNotifications] = useState([])
 
   const userDropdownRef = useRef(null)
   const roomModalRef = useRef(null)
 
-  // Click outside listener for user dropdown
+  // Click outside listener for user dropdown & room selector
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
@@ -69,6 +99,14 @@ export default function AppLayout({ children, house, houses = [], onSelectHouse 
     setCopied(true)
     toast.success('Room invite code copied!')
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSwitchHouse = (targetHouse) => {
+    setInternalHouse(targetHouse)
+    localStorage.setItem('fairshare_house', JSON.stringify(targetHouse))
+    if (onSelectHouse) onSelectHouse(targetHouse)
+    setRoomInfoOpen(false)
+    toast.success(`Switched to ${targetHouse.name}`)
   }
 
   const handleMarkAllRead = () => {
@@ -121,7 +159,7 @@ export default function AppLayout({ children, house, houses = [], onSelectHouse 
             <span className="font-extrabold text-xl text-[#172033] tracking-tight">FairShare</span>
           </Link>
 
-          {/* Active Room Info Label */}
+          {/* Active Room Selector Dropdown */}
           <div className="relative">
             <button
               type="button"
@@ -133,35 +171,67 @@ export default function AppLayout({ children, house, houses = [], onSelectHouse 
                   <Home className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-sm font-bold text-[#172033] truncate">
-                  {house?.name || 'Sunrise Apartments'}
+                  {house?.name || 'My House'}
                 </span>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
             </button>
 
-            {/* Room Info Dropdown */}
+            {/* Room Info / Switcher Dropdown */}
             {roomInfoOpen && (
               <div
                 ref={roomModalRef}
-                className="absolute left-0 right-0 mt-2 bg-white rounded-xl border border-[#E5DED3] shadow-card p-3.5 z-50 space-y-2 text-xs"
+                className="absolute left-0 right-0 mt-2 bg-white rounded-xl border border-[#E5DED3] shadow-card p-3.5 z-50 space-y-3 text-xs"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="font-bold text-[#172033]">Current Room Info</span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#F2EEE7] text-[#5F402B] font-semibold text-[10px]">Active</span>
+                  <span className="font-bold text-[#172033]">Active Room</span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#E6F4ED] text-[#2F9B70] font-semibold text-[10px]">Connected</span>
                 </div>
-                <p className="text-[#687080] font-medium">{house?.name || 'Sunrise Apartments'}</p>
+                <p className="text-[#687080] font-semibold">{house?.name || 'My House'}</p>
                 <div className="flex items-center justify-between bg-[#FAF8F4] p-2 rounded-lg border border-[#E5DED3]">
-                  <span className="text-slate-400 font-semibold">Code:</span>
-                  <span className="font-mono font-bold text-[#172033]">{house?.inviteCode || 'SUNRISE1'}</span>
+                  <span className="text-slate-400 font-semibold">Invite:</span>
+                  <span className="font-mono font-bold text-[#172033]">{house?.inviteCode || 'N/A'}</span>
                   <button onClick={handleCopyCode} className="text-[#5F402B] hover:text-[#4A3120] p-1">
                     {copied ? <Check className="w-3.5 h-3.5 text-[#2F9B70]" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
+                </div>
+
+                {houses.length > 1 && (
+                  <div className="border-t border-slate-100 pt-2">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Switch Room</p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {houses.map((h) => (
+                        <button
+                          key={h._id}
+                          onClick={() => handleSwitchHouse(h)}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
+                            h._id === house?._id
+                              ? 'bg-[#F2EEE7] text-[#5F402B] font-bold'
+                              : 'text-[#172033] hover:bg-[#FAF8F4]'
+                          }`}
+                        >
+                          <span className="truncate">{h.name}</span>
+                          {h._id === house?._id && <Check className="w-3.5 h-3.5 text-[#5F402B]" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-slate-100 pt-2">
+                  <Link
+                    to="/setup"
+                    onClick={() => setRoomInfoOpen(false)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-[#5F402B] hover:text-[#4A3120]"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add or Join Another Room
+                  </Link>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Navigation Links ΓÇö ONLY 5 ITEMS */}
+          {/* Navigation Links */}
           <nav className="flex flex-col gap-1">
             {navItems.map((item) => {
               const Icon = item.icon
@@ -220,7 +290,7 @@ export default function AppLayout({ children, house, houses = [], onSelectHouse 
           {/* Left: Active Room Label */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-[#687080]">Current Room:</span>
-            <span className="text-sm font-bold text-[#172033]">{house?.name || 'Sunrise Apartments'}</span>
+            <span className="text-sm font-bold text-[#172033]">{house?.name || 'My House'}</span>
           </div>
 
           {/* Right: Notifications & User Profile */}
@@ -248,14 +318,14 @@ export default function AppLayout({ children, house, houses = [], onSelectHouse 
               </button>
 
               {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-[#E5DED3] shadow-xl py-1 z-50 animate-fadeIn">
+                <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-[#E5DED3] shadow-xl py-1 z-50">
                   <div className="px-4 py-3 border-b border-[#E5DED3]">
                     <p className="text-xs font-bold text-[#172033] truncate">{user?.name}</p>
                     <p className="text-[11px] text-[#687080] truncate mt-0.5">{user?.email}</p>
                   </div>
                   <div className="py-1">
                     <div className="px-4 py-2 text-xs font-semibold text-[#172033] hover:bg-[#F2EEE7] flex items-center gap-2 cursor-default">
-                      <UserIcon className="w-3.5 h-3.5 text-[#5F402B]" /> Profile Info
+                      <UserIcon className="w-3.5 h-3.5 text-[#5F402B]" /> Signed in as {user?.role || 'Member'}
                     </div>
                   </div>
                   <div className="border-t border-[#E5DED3] pt-1">
@@ -279,7 +349,7 @@ export default function AppLayout({ children, house, houses = [], onSelectHouse 
       </div>
 
       {/* Global AI Chatbot Widget */}
-      {house && (
+      {house?._id && (
         <ChatWidget houseId={house._id} userName={user?.name || 'User'} />
       )}
     </div>

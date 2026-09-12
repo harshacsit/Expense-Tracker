@@ -64,3 +64,6 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Legacy local dev folder
+splitstay/
