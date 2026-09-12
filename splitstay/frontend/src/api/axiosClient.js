@@ -17,14 +17,17 @@ axiosClient.interceptors.request.use((config) => {
   return config
 })
 
-// Handle 401 globally — clear session and redirect to login
+// Handle 401 globally — clear session and redirect to login (except when already attempting auth)
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register')
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('splitstay_user')
       localStorage.removeItem('splitstay_house')
-      window.location.href = '/login'
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

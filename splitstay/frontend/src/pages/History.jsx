@@ -100,38 +100,38 @@ export default function History() {
   const isFiltered = Boolean(filters.category || filters.member || filters.search)
 
   return (
-    <div className="min-h-screen bg-dark-900 pb-16">
+    <div className="min-h-screen bg-[#F7F4EE] pb-16">
       {/* Header */}
-      <div className="sticky top-0 z-40 glass border-b border-white/10 px-4 py-3 backdrop-blur-xl">
+      <div className="sticky top-0 z-40 bg-[#FAF8F4] border-b border-[#E5DED3] px-4 py-3 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
               to="/dashboard"
               id="back-to-dashboard"
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/80 hover:text-white"
+              className="p-2 rounded-xl bg-[#F2EEE7] hover:bg-[#E5DED3] transition-colors text-[#687080] hover:text-[#172033]"
               title="Back to Dashboard"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-lg text-white">Transaction History</h1>
+                <h1 className="font-extrabold text-lg text-[#172033]">Transaction History</h1>
                 {houses.length > 1 && (
                   <select
                     id="history-house-select"
                     value={house?._id || ''}
                     onChange={(e) => handleHouseChange(e.target.value)}
-                    className="text-xs bg-brand-600/20 border border-brand-500/30 rounded-lg px-2 py-0.5 text-brand-300 font-semibold cursor-pointer outline-hidden"
+                    className="text-xs bg-[#F2EEE7] border border-[#E5DED3] rounded-lg px-2 py-0.5 text-[#5F402B] font-semibold cursor-pointer outline-hidden"
                   >
                     {houses.map((h) => (
-                      <option key={h._id} value={h._id} className="bg-dark-800 text-white">
+                      <option key={h._id} value={h._id} className="bg-white text-[#172033]">
                         {h.name}
                       </option>
                     ))}
                   </select>
                 )}
               </div>
-              <p className="text-xs text-white/50">
+              <p className="text-xs text-[#687080]">
                 {house?.name || 'Loading house...'} · {total} expense{total !== 1 ? 's' : ''} recorded
               </p>
             </div>
@@ -142,18 +142,18 @@ export default function History() {
             <button
               id="history-export-csv"
               onClick={handleExportCSV}
-              className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 hover:border-brand-500/50"
+              className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 hover:border-[#5F402B]"
               title="Download spreadsheet CSV"
             >
-              <Download className="w-3.5 h-3.5 text-brand-400" /> Export CSV
+              <Download className="w-3.5 h-3.5 text-[#5F402B]" /> Export CSV
             </button>
             <button
               id="history-print-statement"
               onClick={handlePrintStatement}
-              className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 hover:border-brand-500/50"
+              className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 hover:border-[#5F402B]"
               title="Print or save PDF statement"
             >
-              <Printer className="w-3.5 h-3.5 text-brand-400" /> Print / PDF
+              <Printer className="w-3.5 h-3.5 text-[#5F402B]" /> Print / PDF
             </button>
           </div>
         </div>
@@ -161,14 +161,14 @@ export default function History() {
 
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Filter Controls Bar */}
-        <div className="glass rounded-2xl p-4 mb-6 space-y-3">
+        <div className="saas-card p-4 mb-6 space-y-3">
           {/* Search Bar */}
           <div className="relative">
-            <Search className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[#687080] absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               id="history-search"
               type="text"
-              className="input pl-10 pr-9 py-2 text-sm w-full"
+              className="input pl-10 pr-9 py-2 text-sm w-full border-[#E5DED3] focus:border-[#5F402B]"
               placeholder="Search expenses by description or category..."
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
@@ -176,7 +176,7 @@ export default function History() {
             {filters.search && (
               <button
                 onClick={() => setFilters({ ...filters, search: '' })}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#687080] hover:text-[#172033]"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -186,15 +186,15 @@ export default function History() {
           {/* Category & Member Dropdowns */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
-              <label className="label text-xs">Filter by Category</label>
+              <label className="label text-xs text-[#172033]">Filter by Category</label>
               <select
                 id="filter-category"
-                className="input py-2 text-sm"
+                className="input py-2 text-sm border-[#E5DED3] focus:border-[#5F402B]"
                 value={filters.category}
                 onChange={(e) => setFilters({ ...filters, category: e.target.value })}
               >
                 {CATEGORIES.map((c) => (
-                  <option key={c} value={c === 'All' ? '' : c} className="bg-dark-800 text-white">
+                  <option key={c} value={c === 'All' ? '' : c} className="bg-white text-[#172033]">
                     {c}
                   </option>
                 ))}
@@ -202,16 +202,16 @@ export default function History() {
             </div>
 
             <div className="flex-1">
-              <label className="label text-xs">Filter by Member</label>
+              <label className="label text-xs text-[#172033]">Filter by Member</label>
               <select
                 id="filter-member"
-                className="input py-2 text-sm"
+                className="input py-2 text-sm border-[#E5DED3] focus:border-[#5F402B]"
                 value={filters.member}
                 onChange={(e) => setFilters({ ...filters, member: e.target.value })}
               >
-                <option value="" className="bg-dark-800 text-white">All Members</option>
+                <option value="" className="bg-white text-[#172033]">All Members</option>
                 {members.map((m) => (
-                  <option key={m._id} value={m._id} className="bg-dark-800 text-white">
+                  <option key={m._id} value={m._id} className="bg-white text-[#172033]">
                     {m.name}
                   </option>
                 ))}
@@ -223,7 +223,7 @@ export default function History() {
                 <button
                   id="clear-filters"
                   onClick={() => setFilters({ category: '', member: '', search: '' })}
-                  className="btn-secondary py-2 px-3 text-xs whitespace-nowrap text-brand-300 hover:text-brand-200"
+                  className="btn-secondary py-2 px-3 text-xs whitespace-nowrap text-[#5F402B]"
                 >
                   Clear Filters
                 </button>
@@ -234,20 +234,20 @@ export default function History() {
 
         {/* Results Info Bar */}
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-white/50 text-sm">
+          <p className="text-[#687080] text-sm">
             {total} expense{total !== 1 ? 's' : ''} found
-            {isFiltered && <span className="text-brand-400 font-medium"> (filtered)</span>}
+            {isFiltered && <span className="text-[#5F402B] font-medium"> (filtered)</span>}
           </p>
           {expenses.length > 0 && (
-            <p className="text-sm font-medium">
+            <p className="text-sm font-medium text-[#172033]">
               Total:{' '}
-              <span className="text-gradient font-bold">
+              <span className="font-bold text-[#5F402B]">
                 {currencySymbol}
                 {expenses
                   .reduce((s, e) => s + (e.amount || 0), 0)
                   .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              {total > LIMIT && <span className="text-white/30 text-xs"> (page {page})</span>}
+              {total > LIMIT && <span className="text-[#687080] text-xs"> (page {page})</span>}
             </p>
           )}
         </div>
@@ -255,15 +255,15 @@ export default function History() {
         {/* Expense List Content */}
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-[#5F402B] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : expenses.length === 0 ? (
-          <div className="glass rounded-2xl p-12 text-center">
-            <Filter className="w-10 h-10 text-white/20 mx-auto mb-3" />
-            <h4 className="text-white font-semibold mb-1">
+          <div className="saas-card p-12 text-center">
+            <Filter className="w-10 h-10 text-[#687080]/30 mx-auto mb-3" />
+            <h4 className="text-[#172033] font-semibold mb-1">
               {isFiltered ? 'No matching expenses' : 'No expenses recorded yet'}
             </h4>
-            <p className="text-white/40 text-sm max-w-sm mx-auto mb-4">
+            <p className="text-[#687080] text-sm max-w-sm mx-auto mb-4">
               {isFiltered
                 ? 'Try adjusting or clearing your search and filter criteria.'
                 : 'Expenses logged by roommates in this house will appear here.'}
@@ -296,7 +296,7 @@ export default function History() {
             >
               ← Prev
             </button>
-            <span className="text-white/50 text-sm font-medium">
+            <span className="text-[#687080] text-sm font-medium">
               Page {page} of {totalPages}
             </span>
             <button

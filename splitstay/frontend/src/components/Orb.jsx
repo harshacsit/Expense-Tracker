@@ -197,28 +197,42 @@ export default function Orb({
       return () => {};
     }
 
-    const gl = renderer.gl;
-    gl.clearColor(0, 0, 0, 0);
-    container.appendChild(gl.canvas);
+    const gl = renderer?.gl;
+    if (!gl) {
+      console.warn('WebGL context not available in Orb');
+      return () => {};
+    }
 
-    const geometry = new Triangle(gl);
-    const program = new Program(gl, {
-      vertex: vert,
-      fragment: frag,
-      uniforms: {
-        iTime: { value: 0 },
-        iResolution: {
-          value: new Vec3(gl.canvas.width || 1, gl.canvas.height || 1, (gl.canvas.width || 1) / (gl.canvas.height || 1))
-        },
-        hue: { value: hue },
-        hover: { value: forceHoverState ? 1 : 0 },
-        rot: { value: 0 },
-        hoverIntensity: { value: hoverIntensity },
-        backgroundColor: { value: hexToVec3(backgroundColor) }
+    let program, geometry, mesh;
+    try {
+      gl.clearColor(0, 0, 0, 0);
+      container.appendChild(gl.canvas);
+
+      geometry = new Triangle(gl);
+      program = new Program(gl, {
+        vertex: vert,
+        fragment: frag,
+        uniforms: {
+          iTime: { value: 0 },
+          iResolution: {
+            value: new Vec3(gl.canvas.width || 1, gl.canvas.height || 1, (gl.canvas.width || 1) / (gl.canvas.height || 1))
+          },
+          hue: { value: hue },
+          hover: { value: forceHoverState ? 1 : 0 },
+          rot: { value: 0 },
+          hoverIntensity: { value: hoverIntensity },
+          backgroundColor: { value: hexToVec3(backgroundColor) }
+        }
+      });
+
+      mesh = new Mesh(gl, { geometry, program });
+    } catch (err) {
+      console.warn('WebGL shader or mesh creation failed in Orb:', err);
+      if (gl.canvas && gl.canvas.parentElement === container) {
+        container.removeChild(gl.canvas);
       }
-    });
-
-    const mesh = new Mesh(gl, { geometry, program });
+      return () => {};
+    }
 
     function resize() {
       if (!container || !renderer) return;
@@ -285,7 +299,9 @@ export default function Orb({
       }
       program.uniforms.rot.value = currentRot;
 
-      renderer.render({ scene: mesh });
+      if (mesh && renderer) {
+        renderer.render({ scene: mesh });
+      }
     };
     rafId = requestAnimationFrame(update);
 

@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { Mail, Home, ArrowLeft, CheckCircle, Send } from 'lucide-react'
-import Orb from '../components/Orb'
+import { Mail, Home, ArrowLeft } from 'lucide-react'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -12,129 +11,72 @@ export default function ForgotPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!email.trim()) return toast.error('Please enter your email address')
+    if (!email) return toast.error('Please enter your email')
 
     setLoading(true)
     try {
       await axiosClient.post('/auth/forgot-password', { email })
       setSent(true)
+      toast.success('Password reset link sent!')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Something went wrong. Please try again.')
+      toast.error(err.response?.data?.message || 'Failed to send reset email')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
-      {/* Interactive Glowing Orb WebGL Background */}
-      <div className="fixed inset-0 pointer-events-auto z-0 flex items-center justify-center overflow-hidden">
-        <Orb
-          hoverIntensity={0.5}
-          rotateOnHover={true}
-          hue={0}
-          forceHoverState={false}
-          backgroundColor="#000000"
-        />
-      </div>
-
-      <div className="w-full max-w-md animate-fade-in relative z-10 my-8">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
-            style={{ background: 'linear-gradient(135deg, #6070f5 0%, #a855f7 100%)' }}
-          >
-            <Home className="w-7 h-7 text-white" />
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center p-4">
+      <div className="w-full max-w-md my-8">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#5F402B] text-white mb-3 shadow-xs">
+            <Home className="w-6 h-6" />
           </div>
-          <h1 className="text-3xl font-bold text-gradient">SplitStay</h1>
-          <p className="text-white/40 text-sm mt-1">Shared roommate expense tracking</p>
+          <h1 className="text-2xl font-extrabold text-[#172033] tracking-tight">Forgot password?</h1>
+          <p className="text-[#687080] text-sm mt-1">Enter your email and we'll send a reset link</p>
         </div>
 
-        <div className="glass rounded-2xl p-8">
-          {!sent ? (
-            <>
-              <div className="flex items-center gap-3 mb-6">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(96,112,245,0.15)', border: '1px solid rgba(96,112,245,0.3)' }}
-                >
-                  <Mail className="w-5 h-5 text-brand-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Forgot your password?</h2>
-                  <p className="text-white/40 text-sm">We'll send a reset link to your email</p>
-                </div>
+        <div className="bg-white rounded-2xl border border-[#E5DED3] shadow-sm p-8">
+          {sent ? (
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-[#F2EEE7] text-[#2F9B70] flex items-center justify-center mx-auto">
+                <Mail className="w-6 h-6" />
               </div>
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label htmlFor="forgot-email" className="label">Email address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                    <input
-                      id="forgot-email"
-                      type="email"
-                      className="input pl-10"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <button
-                  id="forgot-submit"
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary w-full flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  {loading ? 'Sending...' : 'Send Reset Link'}
-                </button>
-              </form>
-            </>
-          ) : (
-            /* Success State */
-            <div className="text-center py-4">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)' }}
-              >
-                <CheckCircle className="w-8 h-8 text-emerald-400" />
-              </div>
-              <h2 className="text-xl font-bold mb-2">Check your inbox!</h2>
-              <p className="text-white/50 text-sm mb-1">
-                We sent a password reset link to
+              <p className="text-sm font-semibold text-[#172033]">
+                Check your inbox for <span className="text-[#5F402B] font-bold">{email}</span>
               </p>
-              <p className="text-brand-300 font-medium text-sm mb-6">{email}</p>
-              <p className="text-white/30 text-xs mb-6">
-                Didn't receive it? Check your spam folder. The link expires in 10 minutes.
-              </p>
-              <button
-                id="resend-email"
-                onClick={() => setSent(false)}
-                className="btn-secondary text-sm px-4 py-2 mx-auto"
-              >
-                Try a different email
-              </button>
+              <p className="text-xs text-[#687080]">The link will expire in 10 minutes.</p>
+              <Link to="/login" className="btn-primary w-full py-2.5 inline-block text-center mt-2">
+                Back to Sign In
+              </Link>
             </div>
-          )}
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="label text-[#172033]">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#687080]" />
+                  <input
+                    type="email"
+                    className="input pl-10 border-[#E5DED3] focus:border-[#5F402B]"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+              </div>
 
-          <div className="mt-6 pt-5 border-t border-white/8 flex items-center justify-center">
-            <Link
-              to="/login"
-              className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-sm transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to Sign In
-            </Link>
-          </div>
+              <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+
+              <div className="text-center pt-2">
+                <Link to="/login" className="text-xs font-semibold text-[#687080] hover:text-[#172033] inline-flex items-center gap-1">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+                </Link>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

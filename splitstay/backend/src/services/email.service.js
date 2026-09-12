@@ -1,6 +1,7 @@
-const { Resend } = require('resend');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const getResend = () => {
+  const key = process.env.RESEND_API_KEY || 're_mock_dev_key';
+  return new Resend(key);
+};
 
 /**
  * Send a password reset email via Resend
@@ -9,7 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  * @param {string} userName - Recipient's name
  */
 const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'SplitStay <onboarding@resend.dev>',
     to,
     subject: 'Reset your SplitStay password',
@@ -97,7 +98,7 @@ const sendBalanceReminderEmail = async ({ to, debtorName, houseName, amount, cur
     `
     : '';
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'SplitStay <onboarding@resend.dev>',
     to,
     subject: `Friendly reminder: Pending balance in ${houseName}`,

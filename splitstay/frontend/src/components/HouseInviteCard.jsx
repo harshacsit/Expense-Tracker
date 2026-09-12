@@ -13,25 +13,25 @@ export default function HouseInviteCard({ house, members }) {
   }
 
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="saas-card p-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Key className="w-4 h-4 text-brand-400" />
-            <span className="text-xs text-white/40 uppercase tracking-wider">Invite Code</span>
+            <Key className="w-4 h-4 text-[#5F402B]" />
+            <span className="text-xs text-[#687080] uppercase tracking-wider font-semibold">Invite Code</span>
           </div>
-          <p className="text-2xl font-bold tracking-[0.2em] text-gradient">{house.inviteCode}</p>
+          <p className="text-2xl font-bold tracking-[0.2em] text-[#172033]">{house.inviteCode}</p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-white/40 text-sm">
+          <div className="flex items-center gap-1.5 text-[#687080] text-sm">
             <Users className="w-4 h-4" />
             <span>{members?.length || 0} member{members?.length !== 1 ? 's' : ''}</span>
           </div>
           <button
             id="copy-invite-code"
             onClick={copyCode}
-            className={`btn-secondary flex items-center gap-2 text-sm py-2 ${copied ? 'text-emerald-400' : ''}`}
+            className={`btn-secondary flex items-center gap-2 text-sm py-2 ${copied ? 'text-[#2F9B70]' : ''}`}
           >
             <Copy className="w-3.5 h-3.5" />
             {copied ? 'Copied!' : 'Copy'}
@@ -45,14 +45,14 @@ export default function HouseInviteCard({ house, members }) {
             {members.slice(0, 5).map((m, i) => (
               <div
                 key={m._id || i}
-                className="avatar w-7 h-7 text-xs border-2 border-dark-800"
+                className="w-7 h-7 rounded-full bg-[#5F402B] text-white flex items-center justify-center text-xs font-bold border-2 border-white"
                 title={m.name}
               >
                 {m.name?.[0]?.toUpperCase() || '?'}
               </div>
             ))}
           </div>
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-[#687080]">
             {members.map((m) => m.name).join(', ')}
           </p>
         </div>

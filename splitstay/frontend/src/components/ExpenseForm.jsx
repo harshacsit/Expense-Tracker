@@ -1,102 +1,192 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { X, Plus, Minus, Home, ShoppingCart, Zap, Wifi, Flame, Tv, Tag, ChevronDown, Check, Camera, Loader2, Sparkles } from 'lucide-react'
+import { X, Upload, Check, FileText, Camera, Trash2, AlertCircle } from 'lucide-react'
 
-const CATEGORY_ITEMS = [
-  { name: 'Rent', icon: Home, color: 'text-purple-400 bg-purple-500/15 border-purple-500/30' },
-  { name: 'Groceries', icon: ShoppingCart, color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' },
-  { name: 'Utilities', icon: Zap, color: 'text-yellow-400 bg-yellow-500/15 border-yellow-500/30' },
-  { name: 'Internet', icon: Wifi, color: 'text-blue-400 bg-blue-500/15 border-blue-500/30' },
-  { name: 'Cooking Gas', icon: Flame, color: 'text-orange-400 bg-orange-500/15 border-orange-500/30' },
-  { name: 'Entertainment', icon: Tv, color: 'text-pink-400 bg-pink-500/15 border-pink-500/30' },
-  { name: 'Other', icon: Tag, color: 'text-gray-300 bg-white/10 border-white/20' },
-]
+export default function ExpenseForm({ houseId, members: initialMembers = [], onSuccess, onClose, currencySymbol = '₹' }) {
+  const { user } = useAuth()
+  const [members, setMembers] = useState(initialMembers || [])
+  const [entryMode, setEntryMode] = useState('manual')
+  const [description, setDescription] = useState('')
+  const [amount, setAmount] = useState('')
+  const [category, setCategory] = useState('Groceries')
 
-export default function ExpenseForm({ houseId, members, onSuccess, onClose, currencySymbol = '₹' }) {
-  const [form, setForm] = useState({
-    amount: '',
-    category: 'Groceries',
-    description: '',
-    splitType: 'equal',
-  })
-  const [customShares, setCustomShares] = useState([])
-  const [percentageShares, setPercentageShares] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [scanning, setScanning] = useState(false)
-  const [categoryOpen, setCategoryOpen] = useState(false)
-  const categoryDropdownRef = useRef(null)
-  const fileInputRef = useRef(null)
+  const parsedTotal = parseFloat(amount) || 0
 
-  // Close category dropdown on outside click
+  // Auto-fetch members if not provided or empty
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target)) {
-        setCategoryOpen(false)
+    if ((!members || members.length === 0) && houseId) {
+      axiosClient.get(`/houses/${houseId}/members`)
+        .then(({ data }) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setMembers(data)
+          }
+        })
+        .catch((err) => console.error('Failed to load members for expense form', err))
+    }
+  }, [houseId, members?.length])
+
+  // Normalize members list to include logged-in user if missing
+  const safeMembers = useMemo(() => {
+    const list = Array.isArray(members) && members.length > 0 ? members : []
+    if (list.length === 0 && user) {
+      return [{ userId: user, _id: user._id, name: user.name, email: user.email }]
+    }
+    return list
+  }, [members, user])
+
+  // Default Paid By to the logged-in user if present in members list
+  const defaultPaidBy = useMemo(() => {
+    const found = safeMembers.find((m) => String(m.userId?._id || m.userId || m._id) === String(user?._id))
+    if (found) return String(found.userId?._id || found.userId || found._id)
+    return String(safeMembers[0]?.userId?._id || safeMembers[0]?.userId || safeMembers[0]?._id || user?._id || '')
+  }, [safeMembers, user?._id])
+
+  const [paidById, setPaidById] = useState(defaultPaidBy)
+  const [splitType, setSplitType] = useState('equal')
+  const [customShares, setCustomShares] = useState({})
+
+  // Selected member IDs for splitting
+  const [selectedMemberIds, setSelectedMemberIds] = useState(
+    () => safeMembers.map((m) => String(m.userId?._id || m.userId || m._id))
+  )
+
+  useEffect(() => {
+    if (safeMembers && safeMembers.length > 0) {
+      const allIds = safeMembers.map((m) => String(m.userId?._id || m.userId || m._id))
+      if (selectedMemberIds.length === 0) {
+        setSelectedMemberIds(allIds)
+      }
+      if (!paidById) {
+        setPaidById(defaultPaidBy)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [safeMembers, defaultPaidBy, paidById, selectedMemberIds.length])
 
-  const selectedCategory = CATEGORY_ITEMS.find((c) => c.name === form.category) || CATEGORY_ITEMS[1]
-  const SelectedIcon = selectedCategory.icon
-
-  // Initialize custom shares when switching to custom
+  // Auto-fill split shares when switching splitType
   useEffect(() => {
-    if (form.splitType === 'custom' && members.length > 0) {
-      const perPerson = form.amount ? parseFloat((parseFloat(form.amount) / members.length).toFixed(2)) : 0
-      setCustomShares(members.map((m) => ({ userId: m._id, name: m.name, amountOwed: perPerson })))
-    } else if (form.splitType === 'percentage' && members.length > 0) {
-      const basePct = parseFloat((100 / members.length).toFixed(1))
-      setPercentageShares(members.map((m, idx) => ({
-        userId: m._id,
-        name: m.name,
-        percentage: idx === 0 ? parseFloat((100 - basePct * (members.length - 1)).toFixed(1)) : basePct,
-      })))
+    if (splitType === 'exact' && parsedTotal > 0 && selectedMemberIds.length > 0) {
+      const perPerson = parseFloat((parsedTotal / selectedMemberIds.length).toFixed(2))
+      const sharesObj = {}
+      selectedMemberIds.forEach((id, idx) => {
+        if (idx === selectedMemberIds.length - 1) {
+          const sumPrior = perPerson * (selectedMemberIds.length - 1)
+          sharesObj[id] = parseFloat((parsedTotal - sumPrior).toFixed(2))
+        } else {
+          sharesObj[id] = perPerson
+        }
+      })
+      setCustomShares(sharesObj)
+    } else if (splitType === 'percent' && selectedMemberIds.length > 0) {
+      const perPerson = Math.floor(100 / selectedMemberIds.length)
+      const remainder = 100 - perPerson * selectedMemberIds.length
+      const sharesObj = {}
+      selectedMemberIds.forEach((id, idx) => {
+        sharesObj[id] = idx === 0 ? perPerson + remainder : perPerson
+      })
+      setCustomShares(sharesObj)
     }
-  }, [form.splitType, members])
+  }, [splitType, parsedTotal, selectedMemberIds])
 
-  const updateShare = (userId, value) => {
-    setCustomShares((prev) => prev.map((s) => s.userId === userId ? { ...s, amountOwed: parseFloat(value) || 0 } : s))
+  const [loading, setLoading] = useState(false)
+  const [receiptFile, setReceiptFile] = useState(null)
+
+  const categories = [
+    'Groceries',
+    'Rent',
+    'Utilities',
+    'Internet',
+    'Cooking Gas',
+    'Entertainment',
+    'Other',
+  ]
+
+  const toggleMember = (id) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((mId) => mId !== id) : [...prev, id]
+    )
   }
 
-  const updatePercentage = (userId, value) => {
-    setPercentageShares((prev) => prev.map((s) => s.userId === userId ? { ...s, percentage: parseFloat(value) || 0 } : s))
+  const handleShareChange = (userId, val) => {
+    setCustomShares((prev) => ({ ...prev, [userId]: val }))
   }
 
-  const sharesTotal = customShares.reduce((s, c) => s + (c.amountOwed || 0), 0)
-  const amountNum = parseFloat(form.amount) || 0
-  const shareDiff = parseFloat((sharesTotal - amountNum).toFixed(2))
+  // Pre-submission file removal helper
+  const handleRemoveFile = () => {
+    setReceiptFile(null)
+  }
 
-  const percentageTotal = percentageShares.reduce((s, c) => s + (c.percentage || 0), 0)
-  const percentageDiff = parseFloat((100 - percentageTotal).toFixed(1))
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 KB'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  }
+
+  // Real-time split validation
+
+  const validationState = useMemo(() => {
+    if (splitType === 'exact') {
+      const sum = selectedMemberIds.reduce((s, id) => s + (parseFloat(customShares[id]) || 0), 0)
+      const valid = Math.abs(sum - parsedTotal) <= 0.01
+      return {
+        valid,
+        message: !valid ? `Exact shares sum (${currencySymbol}${sum.toFixed(2)}) must equal total (${currencySymbol}${parsedTotal.toFixed(2)})` : '',
+      }
+    }
+    if (splitType === 'percent') {
+      const sum = selectedMemberIds.reduce((s, id) => s + (parseFloat(customShares[id]) || 0), 0)
+      const valid = Math.abs(sum - 100) <= 0.01
+      return {
+        valid,
+        message: !valid ? `Percentages sum (${sum.toFixed(1)}%) must equal 100%` : '',
+      }
+    }
+    return { valid: true, message: '' }
+  }, [splitType, selectedMemberIds, customShares, parsedTotal, currencySymbol])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.amount || parseFloat(form.amount) <= 0) return toast.error('Enter a valid amount')
-    
-    if (form.splitType === 'custom' && Math.abs(shareDiff) > 0.01) {
-      return toast.error(`Shares must sum to ${currencySymbol}${amountNum}. Current: ${currencySymbol}${sharesTotal.toFixed(2)}`)
+    if (!description.trim() || isNaN(parsedTotal) || parsedTotal <= 0) {
+      return toast.error('Please enter a valid description and amount')
+    }
+    if (selectedMemberIds.length === 0) {
+      return toast.error('Please select at least one housemate to split with')
+    }
+    if (!validationState.valid) {
+      return toast.error(validationState.message)
     }
 
-    if (form.splitType === 'percentage' && Math.abs(percentageDiff) > 0.05) {
-      return toast.error(`Percentages must sum to 100%. Current total: ${percentageTotal.toFixed(1)}%`)
+    let payloadShares = []
+    if (splitType === 'exact') {
+      payloadShares = selectedMemberIds.map((id) => ({
+        userId: id,
+        amountOwed: parseFloat(customShares[id]) || 0,
+      }))
+    } else if (splitType === 'percent') {
+      payloadShares = selectedMemberIds.map((id) => ({
+        userId: id,
+        percentage: parseFloat(customShares[id]) || 0,
+      }))
     }
 
     setLoading(true)
     try {
       await axiosClient.post(`/houses/${houseId}/expenses`, {
-        amount: parseFloat(form.amount),
-        category: form.category,
-        description: form.description,
-        splitType: form.splitType,
-        customShares: form.splitType === 'custom' ? customShares.map(s => ({ userId: s.userId, amountOwed: s.amountOwed })) : undefined,
-        percentageShares: form.splitType === 'percentage' ? percentageShares.map(s => ({ userId: s.userId, percentage: s.percentage })) : undefined,
+        description: description.trim(),
+        amount: parsedTotal,
+        category,
+        paidById,
+        splitType,
+        memberIds: selectedMemberIds,
+        customShares: payloadShares.length > 0 ? payloadShares : undefined,
       })
-      toast.success('Expense added! 💸')
+
+      toast.success('Expense added successfully! 💸')
       onSuccess?.()
-      onClose?.()
+      onClose()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add expense')
     } finally {
@@ -104,283 +194,273 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose, curr
     }
   }
 
-  const handleReceiptFileChange = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      return toast.error('Please upload an image file (JPG, PNG, WebP)')
-    }
-
-    setScanning(true)
-    const toastId = toast.loading('Scanning receipt with Gemini Vision... 🤖')
-
-    try {
-      const reader = new FileReader()
-      reader.onload = async (event) => {
-        try {
-          const base64Data = event.target.result
-          const res = await axiosClient.post(`/houses/${houseId}/expenses/scan-receipt`, {
-            imageBase64: base64Data,
-            mimeType: file.type,
-          })
-
-          if (res.data?.parsed) {
-            const { amount, category, description } = res.data.parsed
-            setForm((prev) => ({
-              ...prev,
-              amount: amount ? amount.toString() : prev.amount,
-              category: category || prev.category,
-              description: description || prev.description,
-            }))
-            toast.success(
-              `Receipt parsed! Amount: ${currencySymbol}${amount} · ${category}`,
-              { id: toastId }
-            )
-          }
-        } catch (err) {
-          toast.error(err.response?.data?.message || 'Failed to analyze receipt image', { id: toastId })
-        } finally {
-          setScanning(false)
-          if (fileInputRef.current) fileInputRef.current.value = ''
-        }
-      }
-      reader.readAsDataURL(file)
-    } catch (err) {
-      toast.error('Failed to read file', { id: toastId })
-      setScanning(false)
-    }
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md glass rounded-2xl p-6 animate-slide-up">
-        {/* Hidden file input for receipt OCR */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleReceiptFileChange}
-        />
-
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2.5">
-            <h3 className="text-lg font-bold">Add Expense</h3>
-            <button
-              type="button"
-              id="scan-receipt-btn"
-              disabled={scanning}
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-600/30 to-purple-600/30 hover:from-blue-600/50 hover:to-purple-600/50 text-purple-300 border border-purple-500/30 transition-all hover:scale-105 active:scale-95 shadow-sm"
-              title="Upload receipt photo to auto-fill amount, category and description with Gemini Vision"
-            >
-              {scanning ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-300" />
-              ) : (
-                <Camera className="w-3.5 h-3.5 text-purple-300" />
-              )}
-              <span>{scanning ? 'Analyzing...' : 'Scan Receipt'}</span>
-            </button>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+    <div className="fixed inset-0 z-50 bg-[#172033]/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white w-full max-w-lg rounded-2xl border border-[#E5DED3] shadow-2xl overflow-hidden my-6">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5DED3]">
+          <h2 className="text-lg font-extrabold text-[#172033]">Add Expense</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-[#687080] hover:text-[#172033] hover:bg-[#F2EEE7] transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Amount */}
-          <div>
-            <label className="label">Amount ({currencySymbol})</label>
-            <input
-              id="expense-amount"
-              type="number"
-              min="0.01"
-              step="0.01"
-              className="input text-xl font-bold"
-              placeholder="0.00"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            />
-          </div>
-
-          {/* Category */}
-          <div className="relative" ref={categoryDropdownRef}>
-            <label className="label">Category</label>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Entry Mode Toggle */}
+          <div className="flex bg-[#F2EEE7] p-1 rounded-xl border border-[#E5DED3]">
             <button
               type="button"
-              id="expense-category-btn"
-              onClick={() => setCategoryOpen(!categoryOpen)}
-              className="input flex items-center justify-between text-left cursor-pointer hover:border-brand-500/50"
+              onClick={() => setEntryMode('manual')}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
+                entryMode === 'manual'
+                  ? 'bg-[#5F402B] text-white shadow-xs'
+                  : 'text-[#687080] hover:text-[#172033]'
+              }`}
             >
-              <div className="flex items-center gap-2.5">
-                <span className={`w-7 h-7 rounded-lg flex items-center justify-center border ${selectedCategory.color}`}>
-                  <SelectedIcon className="w-4 h-4" />
-                </span>
-                <span className="font-medium text-white">{selectedCategory.name}</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-white/40 transition-transform duration-200 ${categoryOpen ? 'rotate-180 text-brand-400' : ''}`} />
+              <FileText className="w-4 h-4" /> Manual Entry
             </button>
-
-            {/* Hidden select for form accessibility/compatibility */}
-            <select
-              id="expense-category"
-              className="sr-only"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              tabIndex={-1}
-              aria-hidden="true"
+            <button
+              type="button"
+              onClick={() => setEntryMode('scan')}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
+                entryMode === 'scan'
+                  ? 'bg-[#5F402B] text-white shadow-xs'
+                  : 'text-[#687080] hover:text-[#172033]'
+              }`}
             >
-              {CATEGORY_ITEMS.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-            </select>
+              <Camera className="w-4 h-4" /> Scan Receipt
+            </button>
+          </div>
 
-            {/* Custom dark glass dropdown */}
-            {categoryOpen && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-white/10 bg-[#16172a] shadow-2xl p-1.5 space-y-1 backdrop-blur-xl max-h-60 overflow-y-auto">
-                {CATEGORY_ITEMS.map((cat) => {
-                  const Icon = cat.icon
-                  const isSelected = form.category === cat.name
-                  return (
-                    <button
-                      key={cat.name}
-                      type="button"
-                      onClick={() => {
-                        setForm({ ...form, category: cat.name })
-                        setCategoryOpen(false)
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-                        isSelected ? 'bg-brand-600/30 text-white font-medium border border-brand-500/30' : 'text-white/80 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center border ${cat.color}`}>
-                          <Icon className="w-4 h-4" />
-                        </span>
-                        <span>{cat.name}</span>
-                      </div>
-                      {isSelected && <Check className="w-4 h-4 text-brand-400" />}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+          {/* Amount Field */}
+          <div>
+            <label className="label text-[#172033]">Amount ({currencySymbol})</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-[#687080]">
+                {currencySymbol}
+              </span>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                className="input pl-8 font-bold text-base border-[#E5DED3] focus:border-[#5F402B]"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="label">Description (optional)</label>
+            <label className="label text-[#172033]">Description</label>
             <input
-              id="expense-description"
               type="text"
-              className="input"
-              placeholder="e.g. Monthly grocery run"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="input border-[#E5DED3] focus:border-[#5F402B]"
+              placeholder="e.g. Grocery shopping, Electricity bill"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
             />
           </div>
 
-          {/* Split Type Toggle */}
+          {/* Category */}
           <div>
-            <label className="label">Split Type</label>
-            <div className="flex glass rounded-xl p-1 gap-1">
+            <label className="label text-[#172033]">Category</label>
+            <select
+              className="input font-semibold border-[#E5DED3] focus:border-[#5F402B]"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Paid By — Defaults to Logged In User */}
+          <div>
+            <label className="label text-[#172033]">Paid By</label>
+            <select
+              className="input font-semibold border-[#E5DED3] focus:border-[#5F402B]"
+              value={paidById}
+              onChange={(e) => setPaidById(e.target.value)}
+            >
+              {safeMembers.map((m) => {
+                const mId = String(m.userId?._id || m.userId || m._id || '')
+                const mName = m.userId?.name || m.name || m.email || 'Member'
+                const isMe = mId === String(user?._id || '')
+                return (
+                  <option key={mId} value={mId}>
+                    {mName} {isMe ? '(You)' : ''}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+
+          {/* Split Type Segmented Control */}
+          <div>
+            <label className="label text-[#172033]">Split Type</label>
+            <div className="grid grid-cols-3 gap-2 bg-[#F2EEE7] p-1 rounded-xl border border-[#E5DED3]">
               {[
-                { id: 'equal', label: '÷ Equal' },
-                { id: 'custom', label: '✏️ Exact' },
-                { id: 'percentage', label: '% Percent' },
-              ].map((tab) => (
+                ['equal', 'Equal'],
+                ['exact', 'Exact'],
+                ['percent', 'Percent'],
+              ].map(([st, label]) => (
                 <button
-                  key={tab.id}
+                  key={st}
                   type="button"
-                  id={`split-${tab.id}`}
-                  onClick={() => setForm({ ...form, splitType: tab.id })}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${form.splitType === tab.id ? 'bg-brand-600 text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
+                  onClick={() => setSplitType(st)}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    splitType === st
+                      ? 'bg-[#5F402B] text-white shadow-xs'
+                      : 'text-[#687080] hover:text-[#172033]'
+                  }`}
                 >
-                  {tab.label}
+                  {label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Custom (Exact) shares */}
-          {form.splitType === 'custom' && (
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="label mb-0">Exact Amount Per Person</label>
-                <span className={`text-xs font-medium ${Math.abs(shareDiff) > 0.01 ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {Math.abs(shareDiff) > 0.01 ? `${currencySymbol}${Math.abs(shareDiff).toFixed(2)} ${shareDiff > 0 ? 'over' : 'under'}` : '✓ Balanced'}
-                </span>
-              </div>
-              {customShares.map((s) => (
-                <div key={s.userId} className="flex items-center gap-3">
-                  <div className="avatar w-8 h-8 text-xs shrink-0">{s.name[0]}</div>
-                  <span className="text-sm text-white/70 flex-1 truncate">{s.name}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className="input w-28 text-right text-sm py-2"
-                    value={s.amountOwed}
-                    onChange={(e) => updateShare(s.userId, e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Split Among Members Chips */}
+          <div>
+            <label className="label text-[#172033]">Split Among</label>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {safeMembers.map((m) => {
+                const mId = String(m.userId?._id || m.userId || m._id || '')
+                const mName = m.userId?.name || m.name || m.email || 'Member'
+                const isMe = mId === String(user?._id || '')
+                const isSelected = selectedMemberIds.includes(mId)
+                const firstName = mName.split(' ')[0]
+                const displayName = isMe ? `${firstName} (You)` : firstName
 
-          {/* Percentage shares */}
-          {form.splitType === 'percentage' && (
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="label mb-0">Percentage Share Per Person</label>
-                <span className={`text-xs font-medium ${Math.abs(percentageDiff) > 0.05 ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {Math.abs(percentageDiff) > 0.05 ? `${percentageTotal.toFixed(1)}% / 100% (${Math.abs(percentageDiff).toFixed(1)}% ${percentageDiff > 0 ? 'under' : 'over'})` : '✓ 100% Balanced'}
-                </span>
-              </div>
-              {percentageShares.map((s) => {
-                const approxAmount = amountNum > 0 ? ((amountNum * (s.percentage || 0)) / 100).toFixed(2) : '0.00'
                 return (
-                  <div key={s.userId} className="flex items-center gap-3">
-                    <div className="avatar w-8 h-8 text-xs shrink-0">{s.name[0]}</div>
-                    <div className="flex-1 truncate">
-                      <span className="text-sm text-white/70 block truncate">{s.name}</span>
-                      <span className="text-xs text-white/40">≈ {currencySymbol}{approxAmount}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        className="input w-20 text-right text-sm py-2"
-                        value={s.percentage}
-                        onChange={(e) => updatePercentage(s.userId, e.target.value)}
-                      />
-                      <span className="text-xs text-white/50">%</span>
-                    </div>
-                  </div>
+                  <button
+                    key={mId}
+                    type="button"
+                    onClick={() => toggleMember(mId)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                      isSelected
+                        ? 'bg-[#5F402B] text-white border-[#5F402B] shadow-xs'
+                        : 'bg-[#F2EEE7] text-[#687080] border-[#E5DED3] hover:bg-[#E5DED3]'
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3.5 h-3.5" />}
+                    <span>{displayName}</span>
+                  </button>
                 )
               })}
             </div>
-          )}
 
-          {/* Equal split preview */}
-          {form.splitType === 'equal' && form.amount && members.length > 0 && (
-            <div className="glass rounded-xl p-3 text-center">
-              <p className="text-xs text-white/40">Each person pays</p>
-              <p className="text-xl font-bold text-gradient">{currencySymbol}{(parseFloat(form.amount) / members.length).toFixed(2)}</p>
-              <p className="text-xs text-white/30">split equally among {members.length} members</p>
-            </div>
-          )}
+            {/* Custom Amounts/Percentages Inputs */}
+            {splitType !== 'equal' && (
+              <div className="mt-3 space-y-2 p-3.5 bg-[#F2EEE7] rounded-xl border border-[#E5DED3]">
+                <p className="text-xs font-semibold text-[#687080]">
+                  {splitType === 'exact' ? `Enter exact amount for each member (${currencySymbol}):` : 'Enter percentage share for each member (%):'}
+                </p>
+                {safeMembers
+                  .filter((m) => {
+                    const mId = String(m.userId?._id || m.userId || m._id || '')
+                    return selectedMemberIds.includes(mId)
+                  })
+                  .map((m) => {
+                    const mId = String(m.userId?._id || m.userId || m._id || '')
+                    const mName = m.userId?.name || m.name || m.email || 'Member'
+                    return (
+                      <div key={mId} className="flex items-center justify-between text-xs gap-3">
+                        <span className="font-semibold text-[#172033]">{mName}</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="input max-w-28 py-1 px-2.5 text-right font-bold border-[#E5DED3] focus:border-[#5F402B]"
+                          placeholder={splitType === 'exact' ? '0.00' : '0%'}
+                          value={customShares[mId] !== undefined ? customShares[mId] : ''}
+                          onChange={(e) => handleShareChange(mId, e.target.value)}
+                        />
+                      </div>
+                    )
+                  })}
+              </div>
+            )}
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            {/* Validation Error Banner */}
+            {!validationState.valid && (
+              <div className="mt-2.5 p-3 rounded-xl bg-red-50 border border-red-200 text-[#D65B57] text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="font-semibold">{validationState.message}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Optional Receipt Upload Zone with Pre-submission File Removal */}
+          <div>
+            <label className="label text-[#172033]">Upload Receipt (Optional)</label>
+            {receiptFile ? (
+              <div className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5DED3] bg-[#F2EEE7]">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-[#E5DED3] text-[#5F402B] flex items-center justify-center shrink-0 font-bold">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-[#172033] truncate">{receiptFile.name}</p>
+                    <p className="text-[10px] text-[#687080] font-semibold">{formatFileSize(receiptFile.size)}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="p-1.5 rounded-lg text-[#687080] hover:text-[#D65B57] hover:bg-red-50 transition-colors"
+                  title="Remove file"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-[#E5DED3] hover:border-[#5F402B] rounded-xl p-4 text-center cursor-pointer transition-colors bg-[#F7F4EE]/60 flex flex-col items-center justify-center">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  id="receipt-file-input"
+                  onChange={(e) => e.target.files?.[0] && setReceiptFile(e.target.files[0])}
+                />
+                <Upload className="w-6 h-6 text-[#5F402B] mb-1.5" />
+                <p className="text-xs font-bold text-[#172033]">
+                  Drag & drop an image or PDF, or select a file
+                </p>
+                <p className="text-[10px] text-[#687080] mt-0.5 mb-2.5">Supports JPG, PNG, PDF</p>
+                <label
+                  htmlFor="receipt-file-input"
+                  className="btn-secondary py-1.5 px-3.5 text-xs inline-flex items-center gap-1.5 cursor-pointer font-bold shadow-xs hover:bg-[#E5DED3]"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#5F402B]" /> Choose File
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#E5DED3]">
             <button
-              id="expense-submit"
-              type="submit"
-              disabled={loading}
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
+              type="button"
+              onClick={onClose}
+              className="btn-secondary"
             >
-              {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !validationState.valid}
+              className="btn-primary"
+            >
               {loading ? 'Adding...' : 'Add Expense'}
             </button>
           </div>

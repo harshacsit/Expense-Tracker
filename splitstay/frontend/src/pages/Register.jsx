@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { UserPlus, Mail, Lock, User, Home, Eye, EyeOff } from 'lucide-react'
-import Orb from '../components/Orb'
+import { User, Mail, Lock, Home, Eye, EyeOff } from 'lucide-react'
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -33,7 +32,7 @@ export default function Register() {
     try {
       const { data } = await axiosClient.post('/auth/register', form)
       login(data)
-      toast.success(`Account created! Welcome, ${data.name} 🎉`)
+      toast.success('Account created! Let\'s set up your house 🏠')
       navigate('/setup')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed')
@@ -42,64 +41,34 @@ export default function Register() {
     }
   }
 
-  const handleGoogleSignUp = () => {
+  const handleGoogleLogin = () => {
     window.location.href = `${BACKEND_URL}/api/auth/google`
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
-      {/* Interactive Glowing Orb WebGL Background */}
-      <div className="fixed inset-0 pointer-events-auto z-0 flex items-center justify-center overflow-hidden">
-        <Orb
-          hoverIntensity={0.5}
-          rotateOnHover={true}
-          hue={0}
-          forceHoverState={false}
-          backgroundColor="#000000"
-        />
-      </div>
-
-      <div className="w-full max-w-md animate-fade-in relative z-10 my-8">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{background: 'linear-gradient(135deg, #6070f5 0%, #a855f7 100%)'}}>
-            <Home className="w-7 h-7 text-white" />
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center p-4">
+      <div className="w-full max-w-md my-8">
+        {/* Logo & Header */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#5F402B] text-white mb-3 shadow-xs">
+            <Home className="w-6 h-6" />
           </div>
-          <h1 className="text-3xl font-bold text-gradient">SplitStay</h1>
-          <p className="text-white/40 text-sm mt-1">Create your free account</p>
+          <h1 className="text-2xl font-extrabold text-[#172033] tracking-tight">Create your account</h1>
+          <p className="text-[#687080] text-sm mt-1">Let's get you started</p>
         </div>
 
-        <div className="glass rounded-2xl p-8">
-          <h2 className="text-xl font-bold mb-1">Get started</h2>
-          <p className="text-white/40 text-sm mb-6">Join your housemates in minutes</p>
-
-          {/* Google Sign-Up */}
-          <button
-            id="google-signup"
-            type="button"
-            onClick={handleGoogleSignUp}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-white/10 text-white/80 text-sm font-medium transition-all duration-200 mb-4 hover:border-white/20 hover:bg-white/5"
-          >
-            <GoogleIcon />
-            Sign up with Google
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-white/8" />
-            <span className="text-white/25 text-xs font-medium">or register with email</span>
-            <div className="flex-1 h-px bg-white/8" />
-          </div>
-
+        {/* Auth Card */}
+        <div className="bg-white rounded-2xl border border-[#E5DED3] shadow-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="reg-name" className="label">Full Name</label>
+              <label htmlFor="reg-name" className="label text-[#172033]">Name</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#687080]" />
                 <input
                   id="reg-name"
                   type="text"
-                  className="input pl-10"
-                  placeholder="Anith Kumar"
+                  className="input pl-10 border-[#E5DED3] focus:border-[#5F402B]"
+                  placeholder="Enter your name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
@@ -107,14 +76,14 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="reg-email" className="label">Email</label>
+              <label htmlFor="reg-email" className="label text-[#172033]">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#687080]" />
                 <input
                   id="reg-email"
                   type="email"
-                  className="input pl-10"
-                  placeholder="anith@example.com"
+                  className="input pl-10 border-[#E5DED3] focus:border-[#5F402B]"
+                  placeholder="you@example.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
@@ -122,21 +91,21 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="reg-password" className="label">Password</label>
+              <label htmlFor="reg-password" className="label text-[#172033]">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#687080]" />
                 <input
                   id="reg-password"
                   type={showPassword ? 'text' : 'password'}
-                  className="input pl-10 pr-10"
-                  placeholder="Min. 6 characters"
+                  className="input pl-10 pr-10 border-[#E5DED3] focus:border-[#5F402B]"
+                  placeholder="Create a password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#687080] hover:text-[#172033] transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -147,20 +116,37 @@ export default function Register() {
               id="register-submit"
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full py-2.5 mt-2"
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <UserPlus className="w-4 h-4" />
+                'Sign Up'
               )}
-              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
 
-          <p className="text-center text-white/40 text-sm mt-6">
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-[#E5DED3]" />
+            <span className="text-[#687080] text-xs font-medium uppercase tracking-wider">or continue with</span>
+            <div className="flex-1 h-px bg-[#E5DED3]" />
+          </div>
+
+          {/* Google Sign-In */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-[#E5DED3] text-[#172033] text-sm font-semibold hover:bg-[#F2EEE7] transition-colors"
+          >
+            <GoogleIcon />
+            Continue with Google
+          </button>
+
+          {/* Footer Prompt */}
+          <p className="text-center text-[#687080] text-xs font-medium mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-brand-400 hover:text-brand-300 font-medium transition-colors">
+            <Link to="/login" className="text-[#5F402B] font-bold hover:text-[#4A3121] transition-colors">
               Sign in
             </Link>
           </p>

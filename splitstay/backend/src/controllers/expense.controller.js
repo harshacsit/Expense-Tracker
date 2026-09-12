@@ -13,44 +13,49 @@ const { scanReceiptImage } = require('../services/receiptScanner.service');
 // @route POST /api/houses/:id/expenses
 const addExpense = async (req, res) => {
   try {
-    const { amount, category, description, splitType, customShares, percentageShares } = req.body;
+    const { amount, category, description, splitType, customShares, percentageShares, paidById, memberIds, receiptUrl } = req.body;
     const houseId = req.params.id;
 
     if (!amount || !category) {
       return res.status(400).json({ message: 'Amount and category are required' });
     }
 
-    // Get all members of this house for the split
-    const memberships = await HouseMember.find({ houseId }).populate('userId', 'name email');
-    const members = memberships.map((m) => m.userId);
-    const memberIds = members.map((m) => m._id.toString());
+    // Determine target members for split calculation
+    let splitMemberIds = memberIds;
+    if (!splitMemberIds || !Array.isArray(splitMemberIds) || splitMemberIds.length === 0) {
+      const memberships = await HouseMember.find({ houseId }).populate('userId', 'name email');
+      splitMemberIds = memberships.map((m) => m.userId?._id?.toString() || m.userId?.toString());
+    }
 
-    if (members.length === 0) {
+    if (!splitMemberIds || splitMemberIds.length === 0) {
       return res.status(400).json({ message: 'No members in this house' });
     }
 
     // Calculate splits
     let shares;
     try {
-      if (splitType === 'percentage' && (percentageShares || customShares)) {
+      if ((splitType === 'percentage' || splitType === 'percent') && (percentageShares || customShares)) {
         shares = calculatePercentageSplit(amount, percentageShares || customShares);
       } else if ((splitType === 'custom' || splitType === 'exact') && customShares) {
         shares = calculateCustomSplit(amount, customShares);
       } else {
-        shares = calculateEqualSplit(amount, memberIds);
+        shares = calculateEqualSplit(amount, splitMemberIds);
       }
     } catch (splitError) {
       return res.status(400).json({ message: splitError.message });
     }
 
+    const payerId = paidById || req.user._id;
+
     // Create expense
     const expense = await Expense.create({
       houseId,
-      paidById: req.user._id,
+      paidById: payerId,
       amount,
       category,
       description: description || '',
       splitType: splitType || 'equal',
+      receiptUrl: receiptUrl || '',
     });
 
     // Create individual shares
@@ -67,7 +72,7 @@ const addExpense = async (req, res) => {
     res.status(201).json({
       expense: populatedExpense,
       shares,
-      message: `Expense of ₹${amount} added and split ${splitType || 'equal'}ly among ${members.length} members`,
+      message: `Expense of ₹${amount} added and split ${splitType || 'equal'}ly among ${splitMemberIds.length} members`,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

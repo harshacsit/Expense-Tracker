@@ -218,7 +218,11 @@ export default function Galaxy({
       return () => {};
     }
 
-    const gl = renderer.gl;
+    const gl = renderer?.gl;
+    if (!gl) {
+      console.warn('WebGL context not available in Galaxy');
+      return () => {};
+    }
 
     if (lightMode) {
       gl.clearColor(1, 1, 1, 1);

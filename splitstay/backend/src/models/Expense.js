@@ -12,6 +12,7 @@ const expenseSchema = new mongoose.Schema(
     },
     description: { type: String, trim: true },
     splitType: { type: String, enum: ['equal', 'custom', 'percentage', 'exact'], default: 'equal' },
+    receiptUrl: { type: String, default: '' },
     date: { type: Date, default: Date.now },
   },
   { timestamps: true }
