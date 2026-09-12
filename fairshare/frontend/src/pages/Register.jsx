@@ -5,7 +5,7 @@ import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { User, Mail, Lock, Home, Eye, EyeOff } from 'lucide-react'
 
-const rawBackend = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const rawBackend = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://fairshare-backend-mvl7.onrender.com' : 'http://localhost:5000')
 const BACKEND_URL = rawBackend.replace(/\/api\/?$/, '')
 
 const GoogleIcon = () => (

@@ -1,9 +1,7 @@
 import axios from 'axios'
 
-const rawBaseUrl = import.meta.env.VITE_API_URL
-const API_BASE_URL = rawBaseUrl
-  ? (rawBaseUrl.endsWith('/api') ? rawBaseUrl : `${rawBaseUrl.replace(/\/$/, '')}/api`)
-  : '/api'
+const rawBaseUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://fairshare-backend-mvl7.onrender.com/api' : '/api')
+const API_BASE_URL = rawBaseUrl.endsWith('/api') ? rawBaseUrl : `${rawBaseUrl.replace(/\/$/, '')}/api`
 
 const axiosClient = axios.create({
   baseURL: API_BASE_URL,
