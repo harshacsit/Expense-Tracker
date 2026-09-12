@@ -6,14 +6,16 @@ const HouseMember = require('../models/HouseMember');
 const recordSettlement = async (req, res) => {
   try {
     const houseId = req.params.id;
-    const { toUserId, amount, note } = req.body;
+    const toUserId = req.body.toUserId || req.body.payeeId;
+    const fromUserId = req.body.fromUserId || req.body.payerId || req.user._id;
+    const { amount, note } = req.body;
 
     if (!toUserId || !amount) {
-      return res.status(400).json({ message: 'toUserId and amount are required' });
+      return res.status(400).json({ message: 'Recipient (toUserId/payeeId) and amount are required' });
     }
 
-    if (toUserId === req.user._id.toString()) {
-      return res.status(400).json({ message: 'You cannot settle with yourself' });
+    if (toUserId.toString() === fromUserId.toString()) {
+      return res.status(400).json({ message: 'Payer and recipient cannot be the same person' });
     }
 
     // Verify recipient is a house member
@@ -24,7 +26,7 @@ const recordSettlement = async (req, res) => {
 
     const settlement = await Settlement.create({
       houseId,
-      fromUserId: req.user._id,
+      fromUserId,
       toUserId,
       amount,
       note: note || '',

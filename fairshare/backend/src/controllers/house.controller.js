@@ -77,7 +77,13 @@ const getMembers = async (req, res) => {
       'userId',
       'name email'
     );
-    const members = memberships.map((m) => ({ ...m.userId.toObject(), role: m.role }));
+    const members = memberships
+      .filter((m) => m && m.userId)
+      .map((m) => ({
+        ...(m.userId?.toObject ? m.userId.toObject() : m.userId),
+        role: m.role,
+        joinedAt: m.createdAt || m.joinedAt,
+      }));
     res.json(members);
   } catch (error) {
     res.status(500).json({ message: error.message });

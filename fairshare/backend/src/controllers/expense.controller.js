@@ -29,15 +29,21 @@ const addExpense = async (req, res) => {
       return res.status(400).json({ message: 'No members in this house' });
     }
 
+    // Determine target members for equal split (allow selective member splitting if memberIds is provided)
+    const targetMemberIds = (Array.isArray(req.body.memberIds) && req.body.memberIds.length > 0)
+      ? req.body.memberIds
+      : memberIds;
+
     // Calculate splits
     let shares;
     try {
-      if (splitType === 'percentage' && (percentageShares || customShares)) {
+      const normalizedSplitType = (splitType || 'equal').toLowerCase();
+      if ((normalizedSplitType === 'percentage' || normalizedSplitType === 'percent') && (percentageShares || customShares)) {
         shares = calculatePercentageSplit(amount, percentageShares || customShares);
-      } else if ((splitType === 'custom' || splitType === 'exact') && customShares) {
+      } else if ((normalizedSplitType === 'custom' || normalizedSplitType === 'exact') && customShares) {
         shares = calculateCustomSplit(amount, customShares);
       } else {
-        shares = calculateEqualSplit(amount, memberIds);
+        shares = calculateEqualSplit(amount, targetMemberIds);
       }
     } catch (splitError) {
       return res.status(400).json({ message: splitError.message });

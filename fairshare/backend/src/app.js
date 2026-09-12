@@ -22,9 +22,12 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. mobile apps, Postman, server-side)
     if (!origin) return callback(null, true);
-    // If FRONTEND_URL is set, only allow that origin
+    // If FRONTEND_URL is set, validate allowed origins
     if (ALLOWED_ORIGIN && ALLOWED_ORIGIN !== '*') {
-      if (origin === ALLOWED_ORIGIN) return callback(null, true);
+      const allowedList = ALLOWED_ORIGIN.split(',').map((u) => u.trim().replace(/\/$/, ''));
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      if (allowedList.includes(normalizedOrigin)) return callback(null, true);
+      console.warn(`[CORS] Rejected origin: ${origin}. Allowed: ${ALLOWED_ORIGIN}`);
       return callback(new Error('Not allowed by CORS'));
     }
     // Otherwise reflect any origin (dev mode / LAN access)
