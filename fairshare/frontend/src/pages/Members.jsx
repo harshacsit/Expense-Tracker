@@ -124,9 +124,9 @@ export default function Members({ house: propHouse }) {
           ) : members.length > 0 ? (
             <div className="divide-y divide-[#E5DED3]">
               {members.map((m) => {
-                const memberUser = m.userId || {}
+                const memberUser = (m.userId && typeof m.userId === 'object') ? m.userId : m
                 const isOwner = m.role === 'admin' || m.role === 'owner'
-                const isMe = memberUser._id === user?._id || memberUser.email === user?.email
+                const isMe = String(memberUser._id || memberUser.id) === String(user?._id) || memberUser.email === user?.email
 
                 return (
                   <div key={m._id || memberUser._id} className="p-4 flex items-center justify-between hover:bg-[#F2EEE7]/40 transition-colors">
