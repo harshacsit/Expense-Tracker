@@ -1,6 +1,15 @@
-const { Resend } = require('resend');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const getResendClient = () => {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || apiKey === 'your_resend_api_key_here') {
+    return null;
+  }
+  try {
+    return new Resend(apiKey);
+  } catch (err) {
+    console.warn('⚠️ Resend initialization warning:', err.message);
+    return null;
+  }
+};
 
 /**
  * Send a password reset email via Resend
@@ -9,6 +18,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  * @param {string} userName - Recipient's name
  */
 const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn('⚠️ RESEND_API_KEY not configured. Skipping password reset email dispatch.');
+    throw new Error('Email service is not configured (RESEND_API_KEY is missing).');
+  }
+
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'FairShare <onboarding@resend.dev>',
     to,
@@ -84,6 +99,12 @@ const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
  * @param {Array} params.settlements - Array of specific settlement suggestions
  */
 const sendBalanceReminderEmail = async ({ to, debtorName, houseName, amount, currencySymbol = '₹', settlements = [] }) => {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn('⚠️ RESEND_API_KEY not configured. Skipping balance reminder email dispatch.');
+    throw new Error('Email service is not configured (RESEND_API_KEY is missing).');
+  }
+
   const settlementListHtml = settlements.length > 0
     ? `
       <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin:20px 0;">
