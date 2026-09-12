@@ -1,11 +1,12 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { User, Mail, Lock, Home, Eye, EyeOff } from 'lucide-react'
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const rawBackend = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const BACKEND_URL = rawBackend.replace(/\/api\/?$/, '')
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
