@@ -6,7 +6,7 @@ services:
   # ──────────────────────────────────────────
   mongo:
     image: mongo:7
-    container_name: splitstay-mongo
+    container_name: fairshare-mongo
     restart: unless-stopped
     ports:
       - '27017:27017'
@@ -23,9 +23,9 @@ services:
   # ──────────────────────────────────────────
   backend:
     build:
-      context: ./splitstay/backend
+      context: ./fairshare/backend
       dockerfile: Dockerfile
-    container_name: splitstay-backend
+    container_name: fairshare-backend
     restart: unless-stopped
     depends_on:
       mongo:
@@ -33,9 +33,9 @@ services:
     ports:
       - '5000:5000'
     env_file:
-      - ./splitstay/backend/.env
+      - ./fairshare/backend/.env
     environment:
-      - MONGO_URI=mongodb://mongo:27017/splitstay
+      - MONGO_URI=mongodb://mongo:27017/fairshare
       - NODE_ENV=production
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/api/health']
@@ -48,9 +48,9 @@ services:
   # ──────────────────────────────────────────
   frontend:
     build:
-      context: ./splitstay/frontend
+      context: ./fairshare/frontend
       dockerfile: Dockerfile
-    container_name: splitstay-frontend
+    container_name: fairshare-frontend
     restart: unless-stopped
     depends_on:
       - backend
