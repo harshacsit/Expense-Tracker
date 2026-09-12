@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { Home, Plus, Key, ArrowRight, Copy } from 'lucide-react'
+import { Home, Plus, Key, ArrowRight, Copy, ArrowLeft } from 'lucide-react'
 
 export default function HouseSetup() {
   const [tab, setTab] = useState('create') // 'create' | 'join'
@@ -18,7 +18,7 @@ export default function HouseSetup() {
     setLoading(true)
     try {
       const { data } = await axiosClient.post('/houses', { name: houseName })
-      localStorage.setItem('splitstay_house', JSON.stringify(data.house))
+      localStorage.setItem('fairshare_house', JSON.stringify(data.house))
       setCreated(data)
       toast.success(`"${data.house.name}" created!`)
     } catch (err) {
@@ -34,7 +34,7 @@ export default function HouseSetup() {
     setLoading(true)
     try {
       const { data } = await axiosClient.post('/houses/join', { inviteCode: inviteCode.trim().toUpperCase() })
-      localStorage.setItem('splitstay_house', JSON.stringify(data.house))
+      localStorage.setItem('fairshare_house', JSON.stringify(data.house))
       toast.success(data.message)
       navigate('/dashboard')
     } catch (err) {
@@ -84,9 +84,19 @@ export default function HouseSetup() {
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold">Set Up Your House</h1>
-          <p className="text-white/40 text-sm mt-1">Create a new shared space or join an existing one</p>
+        <div className="flex items-center gap-3 mb-6">
+          <Link
+            to="/dashboard"
+            id="back-to-dashboard"
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+            title="Back to Dashboard"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Set Up Your House</h1>
+            <p className="text-white/40 text-sm mt-0.5">Create a new shared space or join an existing one</p>
+          </div>
         </div>
 
         {/* Tabs */}

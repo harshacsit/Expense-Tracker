@@ -47,7 +47,7 @@ export default function ForgotPassword() {
           >
             <Home className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gradient">SplitStay</h1>
+          <h1 className="text-3xl font-bold text-gradient">FairShare</h1>
           <p className="text-white/40 text-sm mt-1">Shared roommate expense tracking</p>
         </div>
 

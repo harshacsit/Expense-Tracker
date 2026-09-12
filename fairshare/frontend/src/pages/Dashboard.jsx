@@ -21,7 +21,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   const [house, setHouse] = useState(() => {
-    const stored = localStorage.getItem('splitstay_house')
+    const stored = localStorage.getItem('fairshare_house') || localStorage.getItem('splitstay_house')
     return stored ? JSON.parse(stored) : null
   })
   const [houses, setHouses] = useState([])
@@ -40,7 +40,7 @@ export default function Dashboard() {
       setHouses(data)
       if (!house && data.length > 0) {
         setHouse(data[0])
-        localStorage.setItem('splitstay_house', JSON.stringify(data[0]))
+      localStorage.setItem('fairshare_house', JSON.stringify(data[0]))
       }
     }).catch(() => {})
   }, [])
@@ -82,7 +82,7 @@ export default function Dashboard() {
       await axiosClient.put(`/houses/${house._id}/currency`, { currency: newCurrency })
       const updatedHouse = { ...house, currency: newCurrency }
       setHouse(updatedHouse)
-      localStorage.setItem('splitstay_house', JSON.stringify(updatedHouse))
+      localStorage.setItem('fairshare_house', JSON.stringify(updatedHouse))
       toast.success(`Currency set to ${newCurrency} (${getCurrencySymbol(newCurrency)})`)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update currency')
@@ -161,7 +161,7 @@ export default function Dashboard() {
               onChange={(e) => {
                 const h = houses.find((h) => h._id === e.target.value)
                 setHouse(h)
-                localStorage.setItem('splitstay_house', JSON.stringify(h))
+                localStorage.setItem('fairshare_house', JSON.stringify(h))
               }}
             >
               {houses.map((h) => <option key={h._id} value={h._id}>{h.name}</option>)}
@@ -206,7 +206,7 @@ export default function Dashboard() {
                 Live Household Hub
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                {house?.name || 'SplitStay Dashboard'}
+                {house?.name || 'FairShare Dashboard'}
               </h2>
               <p className="text-sm text-white/70 max-w-md mt-1">
                 Real-time shared balances, automated debt simplification, and Gemini AI insights.
