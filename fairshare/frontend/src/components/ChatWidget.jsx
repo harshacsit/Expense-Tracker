@@ -73,7 +73,7 @@ export default function ChatWidget({ houseId, userName, onExpenseAdded }) {
               <Zap className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-sm">SplitStay AI</p>
+              <p className="font-semibold text-sm">FairShare AI</p>
               <p className="text-xs text-white/40">Powered by Gemini · Always online</p>
             </div>
             <button

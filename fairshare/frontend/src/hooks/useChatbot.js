@@ -5,7 +5,7 @@ export const useChatbot = (houseId, onExpenseAdded) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hi! I'm your SplitStay assistant 🏠 Tell me about an expense (e.g. \"I paid ₹800 for groceries, split equally\"), ask about balances, or ask how to settle up!",
+      content: "Hi! I'm your FairShare assistant 🏠 Tell me about an expense (e.g. \"I paid ₹800 for groceries, split equally\"), ask about balances, or ask how to settle up!",
     },
   ])
   const [loading, setLoading] = useState(false)
@@ -47,7 +47,7 @@ export const useChatbot = (houseId, onExpenseAdded) => {
     setMessages([
       {
         role: 'assistant',
-        content: "Hi! I'm your SplitStay assistant 🏠 How can I help?",
+        content: "Hi! I'm your FairShare assistant 🏠 How can I help?",
       },
     ])
   }

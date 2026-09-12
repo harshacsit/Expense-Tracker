@@ -16,7 +16,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('SplitStay ErrorBoundary caught:', error, info)
+    console.error('FairShare ErrorBoundary caught:', error, info)
   }
 
   render() {

@@ -10,11 +10,12 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Restore session from localStorage
-    const stored = localStorage.getItem('splitstay_user')
+    const stored = localStorage.getItem('fairshare_user') || localStorage.getItem('splitstay_user')
     if (stored) {
       try {
         setUser(JSON.parse(stored))
       } catch {
+        localStorage.removeItem('fairshare_user')
         localStorage.removeItem('splitstay_user')
       }
     }
@@ -23,11 +24,13 @@ export const AuthProvider = ({ children }) => {
 
   const login = (userData) => {
     setUser(userData)
-    localStorage.setItem('splitstay_user', JSON.stringify(userData))
+    localStorage.setItem('fairshare_user', JSON.stringify(userData))
   }
 
   const logout = () => {
     setUser(null)
+    localStorage.removeItem('fairshare_user')
+    localStorage.removeItem('fairshare_house')
     localStorage.removeItem('splitstay_user')
     localStorage.removeItem('splitstay_house')
   }

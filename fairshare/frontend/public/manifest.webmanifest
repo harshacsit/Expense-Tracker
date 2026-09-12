@@ -1,6 +1,6 @@
 {
-  "name": "SplitStay — Shared Roommate Expense Tracker",
-  "short_name": "SplitStay",
+  "name": "FairShare — Shared Roommate Expense Tracker",
+  "short_name": "FairShare",
   "description": "Smart shared expense splitting for roommates. Track who owes whom with AI-powered insights.",
   "start_url": "/",
   "display": "standalone",

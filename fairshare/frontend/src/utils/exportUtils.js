@@ -1,6 +1,6 @@
 /**
  * exportUtils.js
- * Utility functions to export SplitStay financial records as CSV or printable PDF statements.
+ * Utility functions to export FairShare financial records as CSV or printable PDF statements.
  */
 
 export const CURRENCY_SYMBOLS = {
@@ -77,7 +77,7 @@ export const printExpenseStatement = (house, expenses = [], balances = [], curre
     throw new Error('Popup blocked! Please allow popups to print statements.');
   }
 
-  const houseName = house?.name || 'SplitStay House';
+  const houseName = house?.name || 'FairShare House';
   const generatedDate = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
     year: 'numeric',
@@ -118,7 +118,7 @@ export const printExpenseStatement = (house, expenses = [], balances = [], curre
     <!DOCTYPE html>
     <html>
       <head>
-        <title>SplitStay Financial Statement - ${houseName}</title>
+        <title>FairShare Financial Statement - ${houseName}</title>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1f2937; margin: 30px; }
           .header { border-bottom: 2px solid #6366f1; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
@@ -137,7 +137,7 @@ export const printExpenseStatement = (house, expenses = [], balances = [], curre
       <body>
         <div class="header">
           <div>
-            <h1>🏠 SplitStay Statement</h1>
+            <h1>🏠 FairShare Statement</h1>
             <div style="font-size:16px;font-weight:700;color:#111827;">${houseName}</div>
             <div class="meta">Statement Date: ${generatedDate}</div>
           </div>
@@ -179,7 +179,7 @@ export const printExpenseStatement = (house, expenses = [], balances = [], curre
         </table>
 
         <div style="margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;">
-          Generated automatically by SplitStay • Shared Roommate Expense Tracker
+          Generated automatically by FairShare • Shared Roommate Expense Tracker
         </div>
 
         <script>

@@ -1,8 +1,8 @@
 /**
- * SplitStay Service Worker (PWA)
+ * FairShare Service Worker (PWA)
  * Caches core assets and provides offline resiliency for expense records
  */
-const CACHE_NAME = 'splitstay-v1';
+const CACHE_NAME = 'fairshare-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
