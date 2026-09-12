@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 SplitStay Server running on http://localhost:${PORT}`);
+    console.log(`🚀 FairShare Server running on http://localhost:${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 

@@ -1,14 +1,14 @@
 /**
- * OpenAPI 3.0 Specification for SplitStay REST API
+ * OpenAPI 3.0 Specification for FairShare REST API
  * Corresponds to TDD.md Section 4 & 12
  */
 const swaggerSpec = {
   openapi: '3.0.3',
   info: {
-    title: 'SplitStay REST API',
+    title: 'FairShare REST API',
     version: '1.0.0',
     description:
-      'API documentation for SplitStay — Shared Roommate Expense Tracker with Conversational AI, double-entry balance netting, and debt simplification.',
+      'API documentation for FairShare — Shared Roommate Expense Tracker with Conversational AI, double-entry balance netting, and debt simplification.',
   },
   servers: [
     {
