@@ -1,6 +1,15 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend;
+
+const getResendClient = () => {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('Email service is not configured: RESEND_API_KEY is missing');
+  }
+
+  resend ||= new Resend(process.env.RESEND_API_KEY);
+  return resend;
+};
 
 /**
  * Send a password reset email via Resend
@@ -9,7 +18,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  * @param {string} userName - Recipient's name
  */
 const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
-  const { error } = await resend.emails.send({
+  const { error } = await getResendClient().emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'SplitStay <onboarding@resend.dev>',
     to,
     subject: 'Reset your SplitStay password',
@@ -97,7 +106,7 @@ const sendBalanceReminderEmail = async ({ to, debtorName, houseName, amount, cur
     `
     : '';
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResendClient().emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'SplitStay <onboarding@resend.dev>',
     to,
     subject: `Friendly reminder: Pending balance in ${houseName}`,

@@ -36,7 +36,10 @@ export default function Register() {
       toast.success(`Account created! Welcome, ${data.name} 🎉`)
       navigate('/setup')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed')
+      const message = err.code === 'ERR_NETWORK'
+        ? 'Backend unavailable. Start the API and check its MongoDB connection.'
+        : err.response?.data?.message || 'Registration failed'
+      toast.error(message)
     } finally {
       setLoading(false)
     }

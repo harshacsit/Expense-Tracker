@@ -38,7 +38,10 @@ export default function Login() {
       toast.success(`Welcome back, ${data.name}! 🏠`)
       navigate('/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed')
+      const message = err.code === 'ERR_NETWORK'
+        ? 'Backend unavailable. Start the API and check its MongoDB connection.'
+        : err.response?.data?.message || 'Login failed'
+      toast.error(message)
     } finally {
       setLoading(false)
     }

@@ -5,6 +5,13 @@ const connectDB = require('./config/db');
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('❌ Server startup aborted because MongoDB is unavailable.');
+    return;
+  }
+
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 SplitStay Server running on http://localhost:${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -17,12 +24,6 @@ const startServer = async () => {
       console.error('❌ Server error:', err);
     }
   });
-
-  try {
-    await connectDB();
-  } catch (err) {
-    console.error('❌ Database connection error:', err.message);
-  }
 };
 
 startServer();

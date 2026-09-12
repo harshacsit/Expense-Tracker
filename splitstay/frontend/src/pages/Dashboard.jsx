@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { useHouseBalances } from '../hooks/useHouseBalances'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
@@ -13,11 +14,12 @@ import HouseInviteCard from '../components/HouseInviteCard'
 import ChatWidget from '../components/ChatWidget'
 import Lightfall from '../components/Lightfall'
 
-import { Plus, HandCoins, LayoutDashboard, History as HistoryIcon, LogOut, Home, Settings, Download, Printer } from 'lucide-react'
+import { Plus, HandCoins, LayoutDashboard, History as HistoryIcon, LogOut, Home, Settings, Download, Printer, Moon, Sun } from 'lucide-react'
 import { getCurrencySymbol, exportExpensesToCSV, printExpenseStatement } from '../utils/exportUtils'
 
 export default function Dashboard() {
   const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const [house, setHouse] = useState(() => {
@@ -167,6 +169,15 @@ export default function Dashboard() {
               {houses.map((h) => <option key={h._id} value={h._id}>{h.name}</option>)}
             </select>
           )}
+
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/80"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
 
           <Link to="/setup" className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/80" title="Manage house">
             <Settings className="w-4 h-4" />
