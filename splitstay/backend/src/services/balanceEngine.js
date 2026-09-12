@@ -8,7 +8,7 @@ const Settlement = require('../models/Settlement');
  * Computes real-time "who owes whom" balances for a house.
  * 
  * Formula per member:
- *   netBalance = totalPaid - totalOwed + settlementsReceived - settlementsPaid
+ *   netBalance = totalPaid - totalOwed + settlementsGiven - settlementsReceived
  * 
  * BRD Example (Sunrise Apartments):
  *   Ravi paid ₹1650, owed ₹1050 → +₹600 (is owed)
@@ -70,7 +70,7 @@ const calculateBalances = async (houseId, members) => {
     const settlementsGiven = parseFloat((settledGivenMap[id] || 0).toFixed(2));
     const settlementsReceived = parseFloat((settledReceivedMap[id] || 0).toFixed(2));
     const netBalance = parseFloat(
-      (totalPaid - totalOwed + settlementsReceived - settlementsGiven).toFixed(2)
+      (totalPaid - totalOwed + settlementsGiven - settlementsReceived).toFixed(2)
     );
 
     return {

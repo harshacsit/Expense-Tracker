@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { X, Plus, Minus, Home, ShoppingCart, Zap, Wifi, Flame, Tv, Tag, ChevronDown, Check } from 'lucide-react'
+import { X, Plus, Minus, Home, ShoppingCart, Zap, Wifi, Flame, Tv, Tag, ChevronDown, Check, Camera, Loader2, Sparkles } from 'lucide-react'
 
 const CATEGORY_ITEMS = [
   { name: 'Rent', icon: Home, color: 'text-purple-400 bg-purple-500/15 border-purple-500/30' },
@@ -13,7 +13,7 @@ const CATEGORY_ITEMS = [
   { name: 'Other', icon: Tag, color: 'text-gray-300 bg-white/10 border-white/20' },
 ]
 
-export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
+export default function ExpenseForm({ houseId, members, onSuccess, onClose, currencySymbol = '₹' }) {
   const [form, setForm] = useState({
     amount: '',
     category: 'Groceries',
@@ -21,9 +21,12 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
     splitType: 'equal',
   })
   const [customShares, setCustomShares] = useState([])
+  const [percentageShares, setPercentageShares] = useState([])
   const [loading, setLoading] = useState(false)
+  const [scanning, setScanning] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
   const categoryDropdownRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   // Close category dropdown on outside click
   useEffect(() => {
@@ -44,6 +47,13 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
     if (form.splitType === 'custom' && members.length > 0) {
       const perPerson = form.amount ? parseFloat((parseFloat(form.amount) / members.length).toFixed(2)) : 0
       setCustomShares(members.map((m) => ({ userId: m._id, name: m.name, amountOwed: perPerson })))
+    } else if (form.splitType === 'percentage' && members.length > 0) {
+      const basePct = parseFloat((100 / members.length).toFixed(1))
+      setPercentageShares(members.map((m, idx) => ({
+        userId: m._id,
+        name: m.name,
+        percentage: idx === 0 ? parseFloat((100 - basePct * (members.length - 1)).toFixed(1)) : basePct,
+      })))
     }
   }, [form.splitType, members])
 
@@ -51,15 +61,27 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
     setCustomShares((prev) => prev.map((s) => s.userId === userId ? { ...s, amountOwed: parseFloat(value) || 0 } : s))
   }
 
+  const updatePercentage = (userId, value) => {
+    setPercentageShares((prev) => prev.map((s) => s.userId === userId ? { ...s, percentage: parseFloat(value) || 0 } : s))
+  }
+
   const sharesTotal = customShares.reduce((s, c) => s + (c.amountOwed || 0), 0)
   const amountNum = parseFloat(form.amount) || 0
   const shareDiff = parseFloat((sharesTotal - amountNum).toFixed(2))
 
+  const percentageTotal = percentageShares.reduce((s, c) => s + (c.percentage || 0), 0)
+  const percentageDiff = parseFloat((100 - percentageTotal).toFixed(1))
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.amount || parseFloat(form.amount) <= 0) return toast.error('Enter a valid amount')
+    
     if (form.splitType === 'custom' && Math.abs(shareDiff) > 0.01) {
-      return toast.error(`Shares must sum to ₹${amountNum}. Current: ₹${sharesTotal.toFixed(2)}`)
+      return toast.error(`Shares must sum to ${currencySymbol}${amountNum}. Current: ${currencySymbol}${sharesTotal.toFixed(2)}`)
+    }
+
+    if (form.splitType === 'percentage' && Math.abs(percentageDiff) > 0.05) {
+      return toast.error(`Percentages must sum to 100%. Current total: ${percentageTotal.toFixed(1)}%`)
     }
 
     setLoading(true)
@@ -70,6 +92,7 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
         description: form.description,
         splitType: form.splitType,
         customShares: form.splitType === 'custom' ? customShares.map(s => ({ userId: s.userId, amountOwed: s.amountOwed })) : undefined,
+        percentageShares: form.splitType === 'percentage' ? percentageShares.map(s => ({ userId: s.userId, percentage: s.percentage })) : undefined,
       })
       toast.success('Expense added! 💸')
       onSuccess?.()
@@ -81,11 +104,85 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
     }
   }
 
+  const handleReceiptFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      return toast.error('Please upload an image file (JPG, PNG, WebP)')
+    }
+
+    setScanning(true)
+    const toastId = toast.loading('Scanning receipt with Gemini Vision... 🤖')
+
+    try {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const base64Data = event.target.result
+          const res = await axiosClient.post(`/houses/${houseId}/expenses/scan-receipt`, {
+            imageBase64: base64Data,
+            mimeType: file.type,
+          })
+
+          if (res.data?.parsed) {
+            const { amount, category, description } = res.data.parsed
+            setForm((prev) => ({
+              ...prev,
+              amount: amount ? amount.toString() : prev.amount,
+              category: category || prev.category,
+              description: description || prev.description,
+            }))
+            toast.success(
+              `Receipt parsed! Amount: ${currencySymbol}${amount} · ${category}`,
+              { id: toastId }
+            )
+          }
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Failed to analyze receipt image', { id: toastId })
+        } finally {
+          setScanning(false)
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+      }
+      reader.readAsDataURL(file)
+    } catch (err) {
+      toast.error('Failed to read file', { id: toastId })
+      setScanning(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="w-full max-w-md glass rounded-2xl p-6 animate-slide-up">
+        {/* Hidden file input for receipt OCR */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleReceiptFileChange}
+        />
+
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold">Add Expense</h3>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-lg font-bold">Add Expense</h3>
+            <button
+              type="button"
+              id="scan-receipt-btn"
+              disabled={scanning}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-600/30 to-purple-600/30 hover:from-blue-600/50 hover:to-purple-600/50 text-purple-300 border border-purple-500/30 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              title="Upload receipt photo to auto-fill amount, category and description with Gemini Vision"
+            >
+              {scanning ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-300" />
+              ) : (
+                <Camera className="w-3.5 h-3.5 text-purple-300" />
+              )}
+              <span>{scanning ? 'Analyzing...' : 'Scan Receipt'}</span>
+            </button>
+          </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -94,7 +191,7 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Amount */}
           <div>
-            <label className="label">Amount (₹)</label>
+            <label className="label">Amount ({currencySymbol})</label>
             <input
               id="expense-amount"
               type="number"
@@ -186,27 +283,31 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
           <div>
             <label className="label">Split Type</label>
             <div className="flex glass rounded-xl p-1 gap-1">
-              {['equal', 'custom'].map((type) => (
+              {[
+                { id: 'equal', label: '÷ Equal' },
+                { id: 'custom', label: '✏️ Exact' },
+                { id: 'percentage', label: '% Percent' },
+              ].map((tab) => (
                 <button
-                  key={type}
+                  key={tab.id}
                   type="button"
-                  id={`split-${type}`}
-                  onClick={() => setForm({ ...form, splitType: type })}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-all ${form.splitType === type ? 'bg-brand-600 text-white' : 'text-white/50 hover:text-white/80'}`}
+                  id={`split-${tab.id}`}
+                  onClick={() => setForm({ ...form, splitType: tab.id })}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${form.splitType === tab.id ? 'bg-brand-600 text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
                 >
-                  {type === 'equal' ? '÷ Equal' : '✏️ Custom'}
+                  {tab.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Custom shares */}
+          {/* Custom (Exact) shares */}
           {form.splitType === 'custom' && (
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="label mb-0">Per Person Amount</label>
+                <label className="label mb-0">Exact Amount Per Person</label>
                 <span className={`text-xs font-medium ${Math.abs(shareDiff) > 0.01 ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {Math.abs(shareDiff) > 0.01 ? `₹${Math.abs(shareDiff).toFixed(2)} ${shareDiff > 0 ? 'over' : 'under'}` : '✓ Balanced'}
+                  {Math.abs(shareDiff) > 0.01 ? `${currencySymbol}${Math.abs(shareDiff).toFixed(2)} ${shareDiff > 0 ? 'over' : 'under'}` : '✓ Balanced'}
                 </span>
               </div>
               {customShares.map((s) => (
@@ -226,11 +327,47 @@ export default function ExpenseForm({ houseId, members, onSuccess, onClose }) {
             </div>
           )}
 
+          {/* Percentage shares */}
+          {form.splitType === 'percentage' && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="label mb-0">Percentage Share Per Person</label>
+                <span className={`text-xs font-medium ${Math.abs(percentageDiff) > 0.05 ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {Math.abs(percentageDiff) > 0.05 ? `${percentageTotal.toFixed(1)}% / 100% (${Math.abs(percentageDiff).toFixed(1)}% ${percentageDiff > 0 ? 'under' : 'over'})` : '✓ 100% Balanced'}
+                </span>
+              </div>
+              {percentageShares.map((s) => {
+                const approxAmount = amountNum > 0 ? ((amountNum * (s.percentage || 0)) / 100).toFixed(2) : '0.00'
+                return (
+                  <div key={s.userId} className="flex items-center gap-3">
+                    <div className="avatar w-8 h-8 text-xs shrink-0">{s.name[0]}</div>
+                    <div className="flex-1 truncate">
+                      <span className="text-sm text-white/70 block truncate">{s.name}</span>
+                      <span className="text-xs text-white/40">≈ {currencySymbol}{approxAmount}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        className="input w-20 text-right text-sm py-2"
+                        value={s.percentage}
+                        onChange={(e) => updatePercentage(s.userId, e.target.value)}
+                      />
+                      <span className="text-xs text-white/50">%</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           {/* Equal split preview */}
           {form.splitType === 'equal' && form.amount && members.length > 0 && (
             <div className="glass rounded-xl p-3 text-center">
               <p className="text-xs text-white/40">Each person pays</p>
-              <p className="text-xl font-bold text-gradient">₹{(parseFloat(form.amount) / members.length).toFixed(2)}</p>
+              <p className="text-xl font-bold text-gradient">{currencySymbol}{(parseFloat(form.amount) / members.length).toFixed(2)}</p>
               <p className="text-xs text-white/30">split equally among {members.length} members</p>
             </div>
           )}

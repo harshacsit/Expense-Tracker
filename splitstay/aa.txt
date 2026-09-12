@@ -1,0 +1,28 @@
+# Update Prompt — Add Review Findings to SplitStay BRD & TDD
+
+Use this prompt to update the existing SplitStay BRD.md and TDD.md files with the following additions, without changing the existing sections unless noted.
+
+---
+
+
+
+**1. Split Calculation Precision (add to TDD, Split Calculation Logic / `splitCalculator.js` spec):**
+Add that the split calculator must support Equal, Exact Amount, and Percentage split types, and must implement residual fraction distribution — i.e., after dividing an amount, any leftover paise/cents (from rounding) must be distributed across shares so the sum of all shares always exactly equals the original total, with no floating-point drift. Note this logic must be covered by unit tests.
+
+**2. Debt Simplification Guarantee (add to TDD, `debtSimplifier.js` description):**
+State formally: the minimum-cash-flow debt simplification algorithm guarantees that N house members can always fully settle their collective balances in at most N − 1 transactions, by greedily matching the largest debtor against the largest creditor until all balances reach zero.
+
+**3. UI/UX Section (add as a new section to both BRD and TDD):**
+Add a "UI/UX Design" section covering: a glassmorphism-based design system, animated WebGL background visuals for auth screens (login/register/password recovery), a dashboard showing Net Balance, Monthly Spend, and Actionable Settlement Cards, responsive tabs for Equal vs. Custom/Percentage split entry, and a floating AI chat widget with quick-prompt suggestion chips for common actions (e.g. "Add expense," "Check balance," "Settle up").
+
+**4. Security Specifics (expand the existing Non-Functional Requirements / security section in BRD and TDD):**
+Add concrete implementation details: password hashing via bcrypt with salt rounds = 10, JWT token expiration policy, house-membership validation before returning any financial data, `.gitignore` covering `.env`, `node_modules`, build artifacts, and logs, and graceful handling of DB connection timeouts and port conflicts on server startup.
+
+**5. Future Enhancements / Production Roadmap (add as a new section to BRD, after Non-Functional Requirements):**
+List as post-MVP roadmap items (not current scope):
+- Multi-currency support — a per-house currency selector (INR, USD, EUR, GBP) with dynamic currency symbol display.
+- Receipt scanning via OCR/vision AI — photo of a receipt auto-parsed into expense fields.
+- Automated reminders — scheduled emails before recurring bills (rent, utilities) are due.
+- Export options — CSV/PDF export of monthly expense statements.
+
+**Output:** Return the updated BRD.md and TDD.md in full, preserving all existing sections (Problem Statement, Solution Overview, Functional/Non-Functional Requirements, API design, schema, chatbot architecture, implementation phases, and sprints/user stories) and inserting the above additions in the appropriate places.

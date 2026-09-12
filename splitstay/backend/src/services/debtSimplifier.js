@@ -12,6 +12,11 @@
  *   1. Sort members: creditors (positive) and debtors (negative) lists
  *   2. Greedily match largest debtor to largest creditor
  *   3. Repeat until all balances are 0
+ * 
+ * Formal Guarantee:
+ *   The minimum-cash-flow debt simplification algorithm guarantees that N house members
+ *   can always fully settle their collective balances in at most N − 1 transactions,
+ *   by greedily matching the largest debtor against the largest creditor until all balances reach zero.
  */
 
 /**

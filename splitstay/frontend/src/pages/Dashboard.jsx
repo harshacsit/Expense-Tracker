@@ -13,7 +13,8 @@ import HouseInviteCard from '../components/HouseInviteCard'
 import ChatWidget from '../components/ChatWidget'
 import Lightfall from '../components/Lightfall'
 
-import { Plus, HandCoins, LayoutDashboard, History as HistoryIcon, LogOut, Home, Settings } from 'lucide-react'
+import { Plus, HandCoins, LayoutDashboard, History as HistoryIcon, LogOut, Home, Settings, Download, Printer } from 'lucide-react'
+import { getCurrencySymbol, exportExpensesToCSV, printExpenseStatement } from '../utils/exportUtils'
 
 export default function Dashboard() {
   const { user, logout } = useAuth()
@@ -73,6 +74,41 @@ export default function Dashboard() {
     .reduce((sum, e) => sum + e.amount, 0)
   const myBalance = balances.find((b) => b.email === user?.email)
 
+  const currencySymbol = getCurrencySymbol(house?.currency)
+
+  const handleCurrencyChange = async (newCurrency) => {
+    if (!house?._id) return
+    try {
+      await axiosClient.put(`/houses/${house._id}/currency`, { currency: newCurrency })
+      const updatedHouse = { ...house, currency: newCurrency }
+      setHouse(updatedHouse)
+      localStorage.setItem('splitstay_house', JSON.stringify(updatedHouse))
+      toast.success(`Currency set to ${newCurrency} (${getCurrencySymbol(newCurrency)})`)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update currency')
+    }
+  }
+
+  const handleExportCSV = () => {
+    try {
+      if (expenses.length === 0) {
+        toast('No expenses logged yet. Generating template CSV...', { icon: '📄' })
+      }
+      exportExpensesToCSV(house?.name, expenses, currencySymbol)
+      toast.success('CSV statement downloaded! 📊')
+    } catch (err) {
+      toast.error(err.message || 'Export failed')
+    }
+  }
+
+  const handlePrintStatement = () => {
+    try {
+      printExpenseStatement(house, expenses, balances, currencySymbol)
+    } catch (err) {
+      toast.error(err.message || 'Print failed')
+    }
+  }
+
   if (!house && houses.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center flex-col gap-4 px-4">
@@ -100,6 +136,22 @@ export default function Dashboard() {
               <p className="text-xs text-white/30 truncate">{user?.email}</p>
             </div>
           </div>
+
+          {/* Currency switcher */}
+          {house && (
+            <select
+              id="currency-selector"
+              className="input py-1.5 px-2.5 text-xs max-w-28 cursor-pointer font-semibold bg-dark-800/80 border-white/10 text-brand-300"
+              value={house.currency || 'INR'}
+              onChange={(e) => handleCurrencyChange(e.target.value)}
+              title="Select house currency"
+            >
+              <option value="INR">₹ INR</option>
+              <option value="USD">$ USD</option>
+              <option value="EUR">€ EUR</option>
+              <option value="GBP">£ GBP</option>
+            </select>
+          )}
 
           {/* House switcher */}
           {houses.length > 1 && (
@@ -183,13 +235,13 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="glass rounded-2xl p-5">
             <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{currentMonth} Spending</p>
-            <p className="text-3xl font-bold">₹{monthlyTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            <p className="text-3xl font-bold">{currencySymbol}{monthlyTotal.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
             <p className="text-xs text-white/30 mt-1">house total this month</p>
           </div>
           <div className={`rounded-2xl p-5 ${myBalance?.netBalance > 0 ? 'bg-emerald-500/10 border border-emerald-500/20' : myBalance?.netBalance < 0 ? 'bg-red-500/10 border border-red-500/20' : 'glass'}`}>
             <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Your Balance</p>
             <p className={`text-3xl font-bold ${myBalance?.netBalance > 0 ? 'text-emerald-400' : myBalance?.netBalance < 0 ? 'text-red-400' : 'text-white/60'}`}>
-              {myBalance ? `${myBalance.netBalance > 0 ? '+' : ''}₹${Math.abs(myBalance.netBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹0'}
+              {myBalance ? `${myBalance.netBalance > 0 ? '+' : ''}${currencySymbol}${Math.abs(myBalance.netBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : `${currencySymbol}0`}
             </p>
             <p className="text-xs text-white/30 mt-1">
               {!myBalance || myBalance.netBalance === 0 ? 'all settled' : myBalance.netBalance > 0 ? 'you are owed' : 'you owe'}
@@ -221,6 +273,22 @@ export default function Dashboard() {
           >
             <HandCoins className="w-4 h-4" /> Settle Up
           </button>
+          <button
+            id="export-csv-btn"
+            onClick={handleExportCSV}
+            className="btn-secondary flex items-center gap-2 hover:border-brand-500/50"
+            title="Download CSV spreadsheet"
+          >
+            <Download className="w-4 h-4 text-brand-400" /> Export CSV
+          </button>
+          <button
+            id="print-statement-btn"
+            onClick={handlePrintStatement}
+            className="btn-secondary flex items-center gap-2 hover:border-brand-500/50"
+            title="Print or save PDF statement"
+          >
+            <Printer className="w-4 h-4 text-brand-400" /> Print Statement
+          </button>
           <Link to="/history" className="btn-secondary flex items-center gap-2">
             <HistoryIcon className="w-4 h-4" /> Full History
           </Link>
@@ -246,9 +314,18 @@ export default function Dashboard() {
             <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : activeTab === 'balances' ? (
-          <BalanceSummary balances={balances} settlements={settlementSuggestions} />
+          <BalanceSummary
+            houseId={house?._id}
+            balances={balances}
+            settlements={settlementSuggestions}
+            currencySymbol={currencySymbol}
+          />
         ) : (
-          <ExpenseList expenses={expenses.slice(0, 10)} onDelete={loadHouseData} />
+          <ExpenseList
+            expenses={expenses.slice(0, 10)}
+            onDelete={loadHouseData}
+            currencySymbol={currencySymbol}
+          />
         )}
       </div>
 
@@ -259,6 +336,7 @@ export default function Dashboard() {
           members={members}
           onSuccess={loadHouseData}
           onClose={() => setShowExpenseForm(false)}
+          currencySymbol={currencySymbol}
         />
       )}
       {showSettleModal && (
@@ -267,11 +345,12 @@ export default function Dashboard() {
           members={members}
           onSuccess={loadHouseData}
           onClose={() => setShowSettleModal(false)}
+          currencySymbol={currencySymbol}
         />
       )}
 
       {/* AI Chatbot */}
-      {house && <ChatWidget houseId={house._id} userName={user?.name} />}
+      {house && <ChatWidget houseId={house._id} userName={user?.name} onExpenseAdded={loadHouseData} />}
     </div>
   )
 }

@@ -184,4 +184,26 @@ const googleCallback = (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, forgotPassword, resetPassword, googleCallback };
+// @desc  Delete user account & Right to Be Forgotten (GDPR - BRD §7)
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Anonymize user record to preserve balance ledger integrity while purging credentials
+    await User.findByIdAndUpdate(userId, {
+      name: 'Former Member',
+      email: `deleted_${userId}@splitstay.local`,
+      password: null,
+      googleId: null,
+      avatar: null,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    });
+
+    res.json({ message: 'Account successfully deleted and personal data anonymized.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { register, login, getMe, forgotPassword, resetPassword, googleCallback, deleteAccount };

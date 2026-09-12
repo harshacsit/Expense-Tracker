@@ -11,6 +11,8 @@ const chatbotRoutes = require('./routes/chatbot.routes');
 const { expenseRouter, standaloneExpenseRouter } = require('./routes/expense.routes');
 const { protect } = require('./middleware/auth.middleware');
 const { requireHouseMember } = require('./middleware/house.middleware');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const app = express();
 
@@ -19,6 +21,9 @@ app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
+
+// Interactive API Documentation (TDD §12)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use('/api/auth', authRoutes);

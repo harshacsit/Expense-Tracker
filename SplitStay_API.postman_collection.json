@@ -1,0 +1,306 @@
+{
+  "info": {
+    "_postman_id": "8f3b2a1c-7d9e-4a5b-bc12-34567890abcd",
+    "name": "SplitStay API",
+    "description": "Complete Postman Collection for SplitStay REST API (TDD §12)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api", "type": "string" },
+    { "key": "authToken", "value": "", "type": "string" },
+    { "key": "houseId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('authToken', json.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Anith\",\n  \"email\": \"anith@example.com\",\n  \"password\": \"Secret123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('authToken', json.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"anith@example.com\",\n  \"password\": \"Secret123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "Delete Account (Right to Be Forgotten)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/auth/account",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Houses",
+      "item": [
+        {
+          "name": "List My Houses",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/houses",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "Create House",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json._id) pm.collectionVariables.set('houseId', json._id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Apartment 402\",\n  \"currency\": \"INR\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Join House by Invite Code",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses/join",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteCode\": \"CF0BDF36\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get House Members",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/houses/{{houseId}}/members",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "Leave House",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses/{{houseId}}/leave",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "Update House Currency",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/houses/{{houseId}}/currency",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"INR\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "List Expenses (Paginated & Filtered)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/houses/{{houseId}}/expenses?page=1&limit=20&category=Groceries",
+              "host": ["{{baseUrl}}"],
+              "path": ["houses", "{{houseId}}", "expenses"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "category", "value": "Groceries" }
+              ]
+            },
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "Add Expense (Equal Split)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses/{{houseId}}/expenses",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 600,\n  \"category\": \"Internet\",\n  \"description\": \"WiFi Fiber Monthly\",\n  \"splitType\": \"equal\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Scan Receipt Image (Gemini OCR)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses/{{houseId}}/expenses/scan-receipt",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"base64Data\": \"data:image/jpeg;base64,...\",\n  \"mimeType\": \"image/jpeg\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Expense",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/expenses/{{expenseId}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Balances & Settlements",
+      "item": [
+        {
+          "name": "Get Balances & Simplified Settlement Paths",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/houses/{{houseId}}/balances",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "Send Email Balance Reminders",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses/{{houseId}}/balances/remind",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "List Settlements",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/houses/{{houseId}}/settlements",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }]
+          }
+        },
+        {
+          "name": "Record Settlement Payment",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses/{{houseId}}/settlements",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toUserId\": \"6aa15ea5b013d389767a260f\",\n  \"amount\": 350,\n  \"note\": \"UPI payment\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chatbot",
+      "item": [
+        {
+          "name": "Send Chat Message",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/houses/{{houseId}}/chat",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"How much do I owe right now?\",\n  \"history\": []\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

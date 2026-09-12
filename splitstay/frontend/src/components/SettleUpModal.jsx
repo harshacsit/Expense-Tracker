@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 
 const getInitials = (name) => name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
 
-export default function SettleUpModal({ houseId, members, onSuccess, onClose }) {
+export default function SettleUpModal({ houseId, members, onSuccess, onClose, currencySymbol = '₹' }) {
   const { user } = useAuth()
   const [toUserId, setToUserId] = useState('')
   const [amount, setAmount] = useState('')
@@ -28,7 +28,7 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose }) 
         note,
       })
       const recipient = otherMembers.find((m) => m._id === toUserId || m._id?.toString() === toUserId)
-      toast.success(`Payment of ₹${amount} to ${recipient?.name || 'housemate'} recorded!`)
+      toast.success(`Payment of ${currencySymbol}${amount} to ${recipient?.name || 'housemate'} recorded!`)
       onSuccess?.()
       onClose?.()
     } catch (err) {
@@ -82,7 +82,7 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose }) 
 
           {/* Amount */}
           <div>
-            <label className="label">Amount (₹)</label>
+            <label className="label">Amount ({currencySymbol})</label>
             <div className="relative">
               <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
