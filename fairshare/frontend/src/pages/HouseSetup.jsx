@@ -1,28 +1,41 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { Home, Plus, Key, ArrowRight, Copy, ArrowLeft } from 'lucide-react'
+import { Home, Building, Users, Bed, Wrench, UserPlus, ArrowLeft } from 'lucide-react'
 
-export default function HouseSetup() {
+export default function HouseSetup({ onSelectHouse }) {
   const [tab, setTab] = useState('create') // 'create' | 'join'
   const [houseName, setHouseName] = useState('')
+  const [selectedIcon, setSelectedIcon] = useState('home')
+  const [currency, setCurrency] = useState('INR')
   const [inviteCode, setInviteCode] = useState('')
   const [loading, setLoading] = useState(false)
-  const [created, setCreated] = useState(null)
+  const { logout } = useAuth()
   const navigate = useNavigate()
+
+  const icons = [
+    { id: 'home', icon: Home, label: 'Home' },
+    { id: 'building', icon: Building, label: 'Building' },
+    { id: 'people', icon: Users, label: 'People' },
+    { id: 'bed', icon: Bed, label: 'Bed' },
+    { id: 'tools', icon: Wrench, label: 'Tools' },
+  ]
 
   const handleCreate = async (e) => {
     e.preventDefault()
-    if (!houseName.trim()) return toast.error('Enter a house name')
+    if (!houseName.trim()) return toast.error('Please enter a room name')
+
     setLoading(true)
     try {
-      const { data } = await axiosClient.post('/houses', { name: houseName })
+      const { data } = await axiosClient.post('/houses', { name: houseName.trim(), currency })
       localStorage.setItem('fairshare_house', JSON.stringify(data.house))
-      setCreated(data)
-      toast.success(`"${data.house.name}" created!`)
+      onSelectHouse?.(data.house)
+      toast.success(`Room "${data.house.name}" created! ≡ƒÅá`)
+      navigate('/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create house')
+      toast.error(err.response?.data?.message || 'Failed to create room')
     } finally {
       setLoading(false)
     }
@@ -30,142 +43,184 @@ export default function HouseSetup() {
 
   const handleJoin = async (e) => {
     e.preventDefault()
-    if (!inviteCode.trim()) return toast.error('Enter an invite code')
+    if (!inviteCode.trim()) return toast.error('Please enter an invite code')
+
     setLoading(true)
     try {
       const { data } = await axiosClient.post('/houses/join', { inviteCode: inviteCode.trim().toUpperCase() })
       localStorage.setItem('fairshare_house', JSON.stringify(data.house))
-      toast.success(data.message)
+      onSelectHouse?.(data.house)
+      toast.success(`Joined "${data.house.name}"! ≡ƒÄë`)
       navigate('/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid invite code')
+      toast.error(err.response?.data?.message || 'Failed to join room')
     } finally {
       setLoading(false)
     }
   }
 
-  const copyCode = () => {
-    navigator.clipboard.writeText(created.inviteCode)
-    toast.success('Invite code copied!')
-  }
-
-  if (created) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md animate-slide-up">
-          <div className="glass rounded-2xl p-8 text-center">
-            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{background: 'linear-gradient(135deg, #10b981, #059669)'}}>
-              <Home className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">House Created! 🎉</h2>
-            <p className="text-white/50 text-sm mb-6">Share this invite code with your roommates</p>
-
-            <div className="glass rounded-xl p-4 mb-4">
-              <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">Invite Code</p>
-              <p className="text-4xl font-bold tracking-[0.3em] text-gradient">{created.inviteCode}</p>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={copyCode} className="btn-secondary flex-1 flex items-center justify-center gap-2">
-                <Copy className="w-4 h-4" /> Copy Code
-              </button>
-              <button onClick={() => navigate('/dashboard')} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                Go to Dashboard <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="flex items-center gap-3 mb-6">
-          <Link
-            to="/dashboard"
-            id="back-to-dashboard"
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/60 hover:text-white"
-            title="Back to Dashboard"
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center p-4">
+      <div className="w-full max-w-md my-8">
+        {/* Top Header with Back Link and Centered Logo */}
+        <div className="relative flex items-center justify-center mb-6">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="absolute left-0 text-xs font-semibold text-[#687080] hover:text-[#172033] flex items-center gap-1"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Set Up Your House</h1>
-            <p className="text-white/40 text-sm mt-0.5">Create a new shared space or join an existing one</p>
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#5F402B] text-white flex items-center justify-center shadow-xs">
+              <Home className="w-5 h-5" />
+            </div>
+            <span className="font-extrabold text-xl text-[#172033] tracking-tight">FairShare</span>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex glass rounded-xl p-1 mb-6">
+        {/* Tab Toggle */}
+        <div className="flex bg-[#F2EEE7] border border-[#E5DED3] p-1 rounded-xl mb-6">
           <button
-            id="tab-create"
+            type="button"
             onClick={() => setTab('create')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${tab === 'create' ? 'bg-brand-600 text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+              tab === 'create' ? 'bg-[#5F402B] text-white shadow-xs' : 'text-[#687080] hover:text-[#172033]'
+            }`}
           >
-            <Plus className="w-4 h-4 inline mr-1.5" />Create House
+            Create a Room
           </button>
           <button
-            id="tab-join"
+            type="button"
             onClick={() => setTab('join')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${tab === 'join' ? 'bg-brand-600 text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+              tab === 'join' ? 'bg-[#5F402B] text-white shadow-xs' : 'text-[#687080] hover:text-[#172033]'
+            }`}
           >
-            <Key className="w-4 h-4 inline mr-1.5" />Join House
+            Join a Room
           </button>
         </div>
 
-        <div className="glass rounded-2xl p-8">
-          {tab === 'create' ? (
-            <form onSubmit={handleCreate} className="space-y-4">
+        {/* Create Room Card */}
+        {tab === 'create' ? (
+          <div className="bg-white rounded-2xl border border-[#E5DED3] shadow-sm p-8">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-extrabold text-[#172033]">Create a Room</h2>
+              <p className="text-[#687080] text-xs mt-1">Set up a new shared space for you and your housemates.</p>
+            </div>
+
+            <form onSubmit={handleCreate} className="space-y-5">
               <div>
-                <label htmlFor="house-name" className="label">House Name</label>
+                <label className="label text-[#172033]">Room Name</label>
                 <input
-                  id="house-name"
                   type="text"
-                  className="input"
+                  className="input border-[#E5DED3] focus:border-[#5F402B]"
                   placeholder="e.g. Sunrise Apartments"
                   value={houseName}
                   onChange={(e) => setHouseName(e.target.value)}
                 />
               </div>
+
+              {/* Room Icon Selection Row */}
+              <div>
+                <label className="label text-[#172033]">Room Icon (optional)</label>
+                <div className="flex items-center gap-2 justify-between pt-1">
+                  {icons.map((item) => {
+                    const IconComp = item.icon
+                    const isSelected = selectedIcon === item.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedIcon(item.id)}
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'bg-[#5F402B] text-white shadow-md ring-2 ring-[#5F402B] ring-offset-2'
+                            : 'bg-[#F2EEE7] text-[#687080] hover:bg-[#E5DED3]'
+                        }`}
+                        title={item.label}
+                      >
+                        <IconComp className="w-5 h-5" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Currency Selector */}
+              <div>
+                <label className="label text-[#172033]">Default Currency</label>
+                <select
+                  className="input font-semibold border-[#E5DED3] focus:border-[#5F402B]"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  <option value="INR">Γé╣ INR (Indian Rupee)</option>
+                  <option value="USD">$ USD (US Dollar)</option>
+                  <option value="EUR">Γé¼ EUR (Euro)</option>
+                  <option value="GBP">┬ú GBP (British Pound)</option>
+                </select>
+              </div>
+
               <button
-                id="create-house-submit"
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full flex items-center justify-center gap-2"
+                className="btn-primary w-full py-2.5 mt-2"
               >
-                {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
-                {loading ? 'Creating...' : 'Create House'}
+                {loading ? 'Creating...' : 'Create Room'}
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleJoin} className="space-y-4">
+          </div>
+        ) : (
+          /* Join Room Card */
+          <div className="bg-white rounded-2xl border border-[#E5DED3] shadow-sm p-8 text-center">
+            <div className="mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#F2EEE7] text-[#5F402B] mb-3 border border-[#E5DED3]">
+                <UserPlus className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-extrabold text-[#172033]">Join a Room</h2>
+              <p className="text-[#687080] text-xs mt-1">Enter the invite code shared by your housemate.</p>
+            </div>
+
+            <form onSubmit={handleJoin} className="space-y-5 text-left">
               <div>
-                <label htmlFor="join-code" className="label">Invite Code</label>
+                <label className="label text-[#172033]">Invite Code</label>
                 <input
-                  id="join-code"
                   type="text"
-                  className="input text-center uppercase tracking-widest font-bold text-lg"
-                  placeholder="e.g. A3X9KP2M"
-                  maxLength={8}
+                  className="input uppercase tracking-wider font-mono text-center text-base border-[#E5DED3] focus:border-[#5F402B]"
+                  placeholder="e.g. FEDB86BD"
                   value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  onChange={(e) => setInviteCode(e.target.value)}
                 />
               </div>
+
               <button
-                id="join-house-submit"
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full flex items-center justify-center gap-2"
+                className="btn-primary w-full py-2.5"
               >
-                {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Key className="w-4 h-4" />}
-                {loading ? 'Joining...' : 'Join House'}
+                {loading ? 'Joining...' : 'Join Room'}
               </button>
             </form>
-          )}
+
+            <p className="text-center text-[#687080] text-xs font-medium mt-6">
+              Don't have a code?{' '}
+              <button
+                onClick={() => setTab('create')}
+                className="text-[#5F402B] font-bold hover:underline"
+              >
+                Create a room instead
+              </button>
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={logout}
+            className="text-xs font-semibold text-[#687080] hover:text-[#172033] transition-colors"
+          >
+            Sign out of account
+          </button>
         </div>
       </div>
     </div>

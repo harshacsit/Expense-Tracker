@@ -1,10 +1,9 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { LogIn, Mail, Lock, Home, Eye, EyeOff, ArrowLeft } from 'lucide-react'
-import Orb from '../components/Orb'
+import { Mail, Lock, Home, Eye, EyeOff } from 'lucide-react'
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -20,6 +19,7 @@ const GoogleIcon = () => (
 export default function Login() {
   const [searchParams] = useSearchParams()
   const [form, setForm] = useState({ email: '', password: '' })
+  const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
@@ -29,16 +29,19 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.email || !form.password) return toast.error('Please fill in all fields')
+    if (!form.email.trim() || !form.password) return toast.error('Please fill in all fields')
 
     setLoading(true)
     try {
-      const { data } = await axiosClient.post('/auth/login', form)
+      const { data } = await axiosClient.post('/auth/login', {
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      })
       login(data)
-      toast.success(`Welcome back, ${data.name}! 🏠`)
+      toast.success(`Welcome back, ${data.name}! ≡ƒÅá`)
       navigate('/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed')
+      toast.error(err.response?.data?.message || 'Invalid email or password')
     } finally {
       setLoading(false)
     }
@@ -49,68 +52,36 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
-      {/* Interactive Glowing Orb WebGL Background */}
-      <div className="fixed inset-0 pointer-events-auto z-0 flex items-center justify-center overflow-hidden">
-        <Orb
-          hoverIntensity={0.5}
-          rotateOnHover={true}
-          hue={0}
-          forceHoverState={false}
-          backgroundColor="#000000"
-        />
-      </div>
-
-      <div className="w-full max-w-md animate-fade-in relative z-10 my-8">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{background: 'linear-gradient(135deg, #6070f5 0%, #a855f7 100%)'}}>
-            <Home className="w-7 h-7 text-white" />
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center p-4">
+      <div className="w-full max-w-md my-8">
+        {/* Logo & Header */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#5F402B] text-white mb-3 shadow-md">
+            <Home className="w-6 h-6" />
           </div>
-          <h1 className="text-3xl font-bold text-gradient">FairShare</h1>
-          <p className="text-white/40 text-sm mt-1">Shared roommate expense tracking</p>
+          <h1 className="text-2xl font-extrabold text-[#172033] tracking-tight">Welcome back</h1>
+          <p className="text-[#687080] text-sm mt-1">Sign in to continue to your house</p>
         </div>
 
-        {/* OAuth error banner */}
+        {/* OAuth Error Banner */}
         {oauthError && (
-          <div className="mb-4 px-4 py-3 rounded-xl text-sm text-red-400 border border-red-500/30" style={{ background: 'rgba(239,68,68,0.1)' }}>
+          <div className="mb-4 px-4 py-3 rounded-xl text-xs text-[#D65B57] bg-[#FDF0EF] border border-[#F6CBC9]">
             <p className="font-semibold">Google sign-in failed</p>
-            <p className="text-xs text-red-400/80 mt-0.5">
+            <p className="text-[#D65B57] mt-0.5">
               {oauthError === 'oauth_failed'
-                ? 'Authentication could not be completed. Please make sure this Google account is added under Test Users in Google Cloud Console.'
+                ? 'Authentication could not be completed. Please ensure this Google account is added under Test Users.'
                 : decodeURIComponent(oauthError)}
             </p>
           </div>
         )}
 
-        {/* Card */}
-        <div className="glass rounded-2xl p-8">
-          <h2 className="text-xl font-bold mb-1">Welcome back</h2>
-          <p className="text-white/40 text-sm mb-6">Sign in to your account</p>
-
-          {/* Google Sign-In */}
-          <button
-            id="google-login"
-            type="button"
-            onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-white/10 text-white/80 text-sm font-medium transition-all duration-200 mb-4 hover:border-white/20 hover:bg-white/5"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-white/8" />
-            <span className="text-white/25 text-xs font-medium">or sign in with email</span>
-            <div className="flex-1 h-px bg-white/8" />
-          </div>
-
+        {/* Auth Card */}
+        <div className="bg-white rounded-2xl border border-[#E5DED3] shadow-card p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="login-email" className="label">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   id="login-email"
                   type="email"
@@ -128,58 +99,90 @@ export default function Login() {
                 <Link
                   to="/forgot-password"
                   id="forgot-password-link"
-                  className="text-xs text-brand-400 hover:text-brand-300 transition-colors font-medium"
+                  className="text-xs font-semibold text-[#5F402B] hover:text-[#4A3120] transition-colors"
                 >
                   Forgot password?
                 </Link>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   className="input pl-10 pr-10"
-                  placeholder="Your password"
+                  placeholder="Enter your password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
+            {/* Remember me checkbox */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-[#E5DED3] text-[#5F402B] focus:ring-[#5F402B] cursor-pointer"
+              />
+              <label htmlFor="remember-me" className="text-xs font-medium text-[#687080] cursor-pointer">
+                Remember me
+              </label>
+            </div>
+
             <button
               id="login-submit"
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full py-2.5"
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <LogIn className="w-4 h-4" />
+                'Sign In'
               )}
-              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          <p className="text-center text-white/40 text-sm mt-6">
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-[#E5DED3]" />
+            <span className="text-[#687080] text-xs font-medium uppercase tracking-wider">or continue with</span>
+            <div className="flex-1 h-px bg-[#E5DED3]" />
+          </div>
+
+          {/* Google Sign-In */}
+          <button
+            id="google-login"
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-[#E5DED3] text-[#172033] text-sm font-semibold hover:bg-[#F2EEE7] transition-colors"
+          >
+            <GoogleIcon />
+            Continue with Google
+          </button>
+
+          {/* Footer Prompt */}
+          <p className="text-center text-[#687080] text-xs font-medium mt-6">
             Don't have an account?{' '}
-            <Link to="/register" className="text-brand-400 hover:text-brand-300 font-medium transition-colors">
-              Sign up free
+            <Link to="/register" className="text-[#5F402B] font-bold hover:text-[#4A3120] transition-colors">
+              Sign up
             </Link>
           </p>
         </div>
 
-        {/* Demo hint */}
-        <div className="mt-4 glass rounded-xl p-3 text-center">
-          <p className="text-white/30 text-xs">
-            Demo: <span className="text-white/50">anith@sunrise.com / password123</span>
+        {/* Demo Hint */}
+        <div className="mt-4 p-3 bg-[#F2EEE7] rounded-xl border border-[#E5DED3] text-center">
+          <p className="text-xs text-[#172033] font-medium">
+            Demo account: <span className="font-bold text-[#5F402B]">anith@sunrise.com / password123</span>
           </p>
         </div>
       </div>

@@ -1,17 +1,41 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
-import { X, Upload, HandCoins, FileText, Trash2 } from 'lucide-react'
+import { Upload, FileText, Trash2, HandCoins } from 'lucide-react'
+import { getCurrencySymbol } from '../utils/exportUtils'
 
-export default function SettleUpModal({ houseId, members, onSuccess, onClose, currencySymbol = 'Γé╣' }) {
+export default function SettleUp({ house }) {
   const { user } = useAuth()
-  const [payerId, setPayerId] = useState(user?._id || members[0]?.userId?._id || '')
+  const navigate = useNavigate()
+  const [members, setMembers] = useState([])
+  const [payerId, setPayerId] = useState(user?._id || '')
   const [payeeId, setPayeeId] = useState('')
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [proofFile, setProofFile] = useState(null)
+
+  const loadMembers = useCallback(async () => {
+    if (!house?._id) return
+    try {
+      const { data } = await axiosClient.get(`/houses/${house._id}/members`)
+      setMembers(data)
+      if (data.length > 0 && !payerId) {
+        const found = data.find((m) => (m.userId?._id || m.userId) === user?._id)
+        setPayerId(found ? (found.userId?._id || found.userId) : (data[0]?.userId?._id || data[0]?.userId))
+      }
+    } catch (err) {
+      toast.error('Failed to load house members')
+    }
+  }, [house?._id, payerId, user?._id])
+
+  useEffect(() => {
+    loadMembers()
+  }, [loadMembers])
+
+  const currencySymbol = getCurrencySymbol(house?.currency)
 
   const handleRemoveFile = () => {
     setProofFile(null)
@@ -34,7 +58,7 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
 
     setLoading(true)
     try {
-      await axiosClient.post(`/houses/${houseId}/settlements`, {
+      await axiosClient.post(`/houses/${house._id}/settlements`, {
         payerId,
         payeeId,
         amount: parsedAmount,
@@ -42,8 +66,7 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
       })
 
       toast.success('Settlement recorded successfully! ≡ƒñ¥')
-      onSuccess?.()
-      onClose()
+      navigate('/balances')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to record settlement')
     } finally {
@@ -52,32 +75,21 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#172033]/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white w-full max-w-md rounded-2xl border border-[#E5DED3] shadow-2xl overflow-hidden my-6">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5DED3]">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#F2EEE7] text-[#5F402B] flex items-center justify-center">
-              <HandCoins className="w-4 h-4" />
-            </div>
-            <h2 className="text-lg font-extrabold text-[#172033]">Settle Up</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-[#687080] hover:text-[#172033] hover:bg-[#F2EEE7] transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="space-y-6 max-w-xl mx-auto">
+      {/* Top Header */}
+      <div>
+        <h1 className="text-2xl font-extrabold text-navy-900 tracking-tight">Settle Up</h1>
+        <p className="text-slate-500 text-xs mt-0.5">Record payments and clear balances.</p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <p className="text-xs text-[#687080]">Record a direct payment between housemates to clear balances.</p>
-
+      {/* Settle Up Form Card */}
+      <div className="bg-white rounded-2xl border border-[#E5DED3] p-8 shadow-card">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* From */}
           <div>
-            <label className="label text-[#172033]">From</label>
+            <label className="label">From</label>
             <select
-              className="input font-semibold border-[#E5DED3] focus:border-[#5F402B]"
+              className="input font-semibold"
               value={payerId}
               onChange={(e) => setPayerId(e.target.value)}
             >
@@ -95,9 +107,9 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
 
           {/* To */}
           <div>
-            <label className="label text-[#172033]">To</label>
+            <label className="label">To</label>
             <select
-              className="input font-semibold border-[#E5DED3] focus:border-[#5F402B]"
+              className="input font-semibold"
               value={payeeId}
               onChange={(e) => setPayeeId(e.target.value)}
               required
@@ -117,17 +129,17 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
 
           {/* Amount */}
           <div>
-            <label className="label text-[#172033]">Amount ({currencySymbol})</label>
+            <label className="label">Amount ({currencySymbol})</label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-[#687080]">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">
                 {currencySymbol}
               </span>
               <input
                 type="number"
                 step="0.01"
                 min="0.01"
-                className="input pl-8 font-bold text-base border-[#E5DED3] focus:border-[#5F402B]"
-                placeholder="0.00"
+                className="input pl-8 font-bold text-base"
+                placeholder="250"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
@@ -137,10 +149,10 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
 
           {/* Note (optional) */}
           <div>
-            <label className="label text-[#172033]">Note (optional)</label>
+            <label className="label">Note (optional)</label>
             <input
               type="text"
-              className="input text-xs border-[#E5DED3] focus:border-[#5F402B]"
+              className="input"
               placeholder="e.g. UPI transaction, cash, etc."
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -149,11 +161,11 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
 
           {/* Upload Proof (Optional) with Pre-submission Removal */}
           <div>
-            <label className="label text-[#172033]">Upload Proof (Optional)</label>
+            <label className="label">Upload Proof (Optional)</label>
             {proofFile ? (
               <div className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5DED3] bg-[#F2EEE7]">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-[#E5DED3] text-[#5F402B] flex items-center justify-center shrink-0 font-bold">
+                  <div className="w-9 h-9 rounded-lg bg-[#FAF8F4] text-[#5F402B] flex items-center justify-center shrink-0 font-bold">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
@@ -164,51 +176,51 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
                 <button
                   type="button"
                   onClick={handleRemoveFile}
-                  className="p-1.5 rounded-lg text-[#687080] hover:text-[#D65B57] hover:bg-red-50 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#D65B57] hover:bg-[#FDF0EF] transition-colors"
                   title="Remove file"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-[#E5DED3] hover:border-[#5F402B] rounded-xl p-4 text-center cursor-pointer transition-colors bg-[#F7F4EE]/60 flex flex-col items-center justify-center">
+              <div className="border-2 border-dashed border-[#E5DED3] hover:border-[#5F402B] rounded-xl p-5 text-center cursor-pointer transition-colors bg-[#F2EEE7]/50 flex flex-col items-center justify-center">
                 <input
                   type="file"
                   accept="image/*,.pdf"
                   className="hidden"
-                  id="settle-proof-input"
+                  id="page-settle-proof-input"
                   onChange={(e) => e.target.files?.[0] && setProofFile(e.target.files[0])}
                 />
                 <Upload className="w-6 h-6 text-[#5F402B] mb-1.5" />
                 <p className="text-xs font-bold text-[#172033]">
                   Drag & drop payment proof, or select a file
                 </p>
-                <p className="text-[10px] text-[#687080] mt-0.5 mb-2.5">Supports JPG, PNG, PDF</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 mb-2.5">Supports JPG, PNG, PDF</p>
                 <label
-                  htmlFor="settle-proof-input"
-                  className="btn-secondary py-1.5 px-3.5 text-xs inline-flex items-center gap-1.5 cursor-pointer font-bold shadow-xs hover:bg-[#E5DED3]"
+                  htmlFor="page-settle-proof-input"
+                  className="px-3 py-1.5 rounded-lg bg-white border border-[#E5DED3] text-[#5F402B] font-bold text-xs hover:bg-[#F2EEE7] transition-colors cursor-pointer"
                 >
-                  <Upload className="w-3.5 h-3.5 text-[#5F402B]" /> Choose File
+                  Browse File
                 </label>
               </div>
             )}
           </div>
 
-          {/* Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E5DED3]">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
-              className="btn-secondary"
+              onClick={() => navigate('/balances')}
+              className="btn-secondary flex-1 py-3"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary"
+              className="btn-primary flex-1 py-3 flex items-center justify-center gap-2"
             >
-              {loading ? 'Recording...' : 'Record Settlement'}
+              <HandCoins className="w-4 h-4" />
+              <span>{loading ? 'Recording...' : 'Record Settlement'}</span>
             </button>
           </div>
         </form>

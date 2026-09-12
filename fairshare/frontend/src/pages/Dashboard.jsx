@@ -1,49 +1,44 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+﻿import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useHouseBalances } from '../hooks/useHouseBalances'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 
-import BalanceSummary from '../components/BalanceSummary'
-import ExpenseList from '../components/ExpenseList'
+import CategoryDonutChart from '../components/CategoryDonutChart'
 import ExpenseForm from '../components/ExpenseForm'
 import SettleUpModal from '../components/SettleUpModal'
-import HouseInviteCard from '../components/HouseInviteCard'
-import ChatWidget from '../components/ChatWidget'
-import Lightfall from '../components/Lightfall'
 
-import { Plus, HandCoins, LayoutDashboard, History as HistoryIcon, LogOut, Home, Settings, Download, Printer } from 'lucide-react'
-import { getCurrencySymbol, exportExpensesToCSV, printExpenseStatement } from '../utils/exportUtils'
+import {
+  TrendingUp,
+  CreditCard,
+  Users,
+  Receipt,
+  Plus,
+  HandCoins,
+  Scale,
+  ArrowRight,
+  Wifi,
+  Zap,
+  ShoppingBag,
+  Flame,
+  Film,
+  Home as HomeIcon,
+  Calendar
+} from 'lucide-react'
+import { getCurrencySymbol } from '../utils/exportUtils'
 
-export default function Dashboard() {
-  const { user, logout } = useAuth()
+export default function Dashboard({ house, houses = [], onSelectHouse }) {
+  const { user } = useAuth()
   const navigate = useNavigate()
 
-  const [house, setHouse] = useState(() => {
-    const stored = localStorage.getItem('fairshare_house') || localStorage.getItem('splitstay_house')
-    return stored ? JSON.parse(stored) : null
-  })
-  const [houses, setHouses] = useState([])
   const [members, setMembers] = useState([])
   const [expenses, setExpenses] = useState([])
   const [loadingData, setLoadingData] = useState(false)
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [showSettleModal, setShowSettleModal] = useState(false)
-  const [activeTab, setActiveTab] = useState('balances')
 
-  const { balances, settlements: settlementSuggestions, refetch: refetchBalances } = useHouseBalances(house?._id)
-
-  // Load user's houses on mount
-  useEffect(() => {
-    axiosClient.get('/houses').then(({ data }) => {
-      setHouses(data)
-      if (!house && data.length > 0) {
-        setHouse(data[0])
-      localStorage.setItem('fairshare_house', JSON.stringify(data[0]))
-      }
-    }).catch(() => {})
-  }, [])
+  const { balances, refetch: refetchBalances } = useHouseBalances(house?._id)
 
   const loadHouseData = useCallback(async () => {
     if (!house?._id) return
@@ -61,272 +56,314 @@ export default function Dashboard() {
     } finally {
       setLoadingData(false)
     }
-  }, [house?._id])
+  }, [house?._id, refetchBalances])
 
-  useEffect(() => { loadHouseData() }, [loadHouseData])
+  useEffect(() => {
+    loadHouseData()
+  }, [loadHouseData])
 
-  const handleLogout = () => { logout(); navigate('/login') }
+  // Dynamic Browser Date
+  const formattedToday = useMemo(() => {
+    return new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  }, [])
 
-  // Summary stats
-  const currentMonth = new Date().toLocaleString('default', { month: 'long' })
-  const monthlyTotal = expenses
-    .filter((e) => new Date(e.date).getMonth() === new Date().getMonth())
-    .reduce((sum, e) => sum + e.amount, 0)
-  const myBalance = balances.find((b) => b.email === user?.email)
+  // Dynamic Greeting based on authenticated user name
+  const greetingName = user?.name ? user.name.split(' ')[0] : 'User'
 
+  // Summary calculation logic
+  const totalAllExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+  const currentMonthExpenses = expenses
+    .filter((e) => {
+      const d = new Date(e.date || e.createdAt)
+      const now = new Date()
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    })
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+  
+  const myBalance = balances.find((b) => b.email === user?.email || String(b.userId) === String(user?._id))
   const currencySymbol = getCurrencySymbol(house?.currency)
 
-  const handleCurrencyChange = async (newCurrency) => {
-    if (!house?._id) return
-    try {
-      await axiosClient.put(`/houses/${house._id}/currency`, { currency: newCurrency })
-      const updatedHouse = { ...house, currency: newCurrency }
-      setHouse(updatedHouse)
-      localStorage.setItem('fairshare_house', JSON.stringify(updatedHouse))
-      toast.success(`Currency set to ${newCurrency} (${getCurrencySymbol(newCurrency)})`)
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update currency')
+  const displayTotalExpenses = expenses.length > 0 ? (currentMonthExpenses > 0 ? currentMonthExpenses : totalAllExpenses) : 0
+  const displayBalance = myBalance ? myBalance.netBalance : 0
+  const displayMemberCount = members.length
+  const displayExpenseCount = expenses.length
+
+  // Helper for category icons
+  const getCategoryIcon = (category) => {
+    switch (category?.toLowerCase()) {
+      case 'groceries':
+        return (
+          <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0 shadow-xs">
+            <ShoppingBag className="w-4 h-4" />
+          </div>
+        )
+      case 'utilities':
+        return (
+          <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white shrink-0 shadow-xs">
+            <Zap className="w-4 h-4" />
+          </div>
+        )
+      case 'internet':
+        return (
+          <div className="w-8 h-8 rounded-full bg-[#2453FF] flex items-center justify-center text-white shrink-0 shadow-xs">
+            <Wifi className="w-4 h-4" />
+          </div>
+        )
+      case 'cooking gas':
+      case 'food':
+        return (
+          <div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center text-white shrink-0 shadow-xs">
+            <Flame className="w-4 h-4" />
+          </div>
+        )
+      case 'entertainment':
+        return (
+          <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white shrink-0 shadow-xs">
+            <Film className="w-4 h-4" />
+          </div>
+        )
+      default:
+        return (
+          <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-white shrink-0 shadow-xs">
+            <Receipt className="w-4 h-4" />
+          </div>
+        )
     }
   }
 
-  const handleExportCSV = () => {
-    try {
-      if (expenses.length === 0) {
-        toast('No expenses logged yet. Generating template CSV...', { icon: '📄' })
-      }
-      exportExpensesToCSV(house?.name, expenses, currencySymbol)
-      toast.success('CSV statement downloaded! 📊')
-    } catch (err) {
-      toast.error(err.message || 'Export failed')
-    }
-  }
-
-  const handlePrintStatement = () => {
-    try {
-      printExpenseStatement(house, expenses, balances, currencySymbol)
-    } catch (err) {
-      toast.error(err.message || 'Print failed')
-    }
-  }
-
-  if (!house && houses.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4 px-4">
-        <Home className="w-16 h-16 text-white/20" />
-        <h2 className="text-xl font-bold">No House Yet</h2>
-        <p className="text-white/40 text-sm text-center">Create or join a house to start tracking shared expenses</p>
-        <Link to="/setup" className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Set Up Your House
-        </Link>
-      </div>
-    )
+  // Format date string
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Today'
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Top Nav */}
-      <nav className="sticky top-0 z-40 glass border-b border-white/5 px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #6070f5, #a855f7)' }}>
-              <Home className="w-4 h-4 text-white" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-sm truncate">{house?.name || 'Loading...'}</p>
-              <p className="text-xs text-white/30 truncate">{user?.email}</p>
-            </div>
-          </div>
-
-          {/* Currency switcher */}
-          {house && (
-            <select
-              id="currency-selector"
-              className="input py-1.5 px-2.5 text-xs max-w-28 cursor-pointer font-semibold bg-dark-800/80 border-white/10 text-brand-300"
-              value={house.currency || 'INR'}
-              onChange={(e) => handleCurrencyChange(e.target.value)}
-              title="Select house currency"
-            >
-              <option value="INR">₹ INR</option>
-              <option value="USD">$ USD</option>
-              <option value="EUR">€ EUR</option>
-              <option value="GBP">£ GBP</option>
-            </select>
-          )}
-
-          {/* House switcher */}
-          {houses.length > 1 && (
-            <select
-              className="input py-1.5 text-xs max-w-36"
-              value={house?._id}
-              onChange={(e) => {
-                const h = houses.find((h) => h._id === e.target.value)
-                setHouse(h)
-                localStorage.setItem('fairshare_house', JSON.stringify(h))
-              }}
-            >
-              {houses.map((h) => <option key={h._id} value={h._id}>{h.name}</option>)}
-            </select>
-          )}
-
-          <Link to="/setup" className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/80" title="Manage house">
-            <Settings className="w-4 h-4" />
-          </Link>
-          <button onClick={handleLogout} id="logout-btn" className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/80" title="Log out">
-            <LogOut className="w-4 h-4" />
-          </button>
+    <div className="space-y-6">
+      {/* Top Greeting Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-navy-900 tracking-tight">
+            Good evening, {greetingName} ≡ƒæï
+          </h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Here's what's happening in your house today.
+          </p>
         </div>
-      </nav>
+        {/* Dynamic Date Badge */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs">
+          <Calendar className="w-4 h-4 text-blue-600" />
+          <span>{formattedToday}</span>
+        </div>
+      </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Interactive Lightfall Hero Banner */}
-        <div className="relative w-full rounded-3xl overflow-hidden mb-6 border border-white/10 shadow-2xl" style={{ minHeight: '190px' }}>
-          <div className="absolute inset-0 z-0">
-            <Lightfall
-              colors={['#A6C8FF', '#5227FF', '#FF9FFC']}
-              backgroundColor="#0A29FF"
-              speed={0.5}
-              streakCount={2}
-              streakWidth={1}
-              streakLength={1}
-              glow={1}
-              density={0.6}
-              twinkle={1}
-              zoom={3}
-              backgroundGlow={0.5}
-              opacity={0.65}
-              mouseInteraction
-              mouseStrength={0.5}
-              mouseRadius={1}
-            />
+      {/* BALANCE HERO CARD & CONNECTED FINANCIAL OVERVIEW */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Large Balance Hero Card (7 cols) */}
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E5DED3] p-6 sm:p-8 shadow-card relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#687080]">Your Net Balance</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                displayBalance > 0
+                  ? 'bg-[#E6F4ED] text-[#2F9B70] border border-[#BBE3D0]'
+                  : displayBalance < 0
+                  ? 'bg-[#FDF0EF] text-[#D65B57] border border-[#F6CBC9]'
+                  : 'bg-[#F2EEE7] text-[#5F402B] border border-[#E5DED3]'
+              }`}>
+                {displayBalance > 0 ? 'Γ£ô You are owed' : displayBalance < 0 ? 'ΓÜá You owe' : 'Γ£ô All settled'}
+              </span>
+            </div>
+
+            {/* Large Balance Number */}
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="text-4xl sm:text-5xl font-extrabold text-[#172033] tracking-tight">
+                {displayBalance >= 0 ? '+' : '-'}{currencySymbol}{Math.abs(displayBalance).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <p className="text-xs text-[#687080] font-medium mt-1">
+              {displayBalance > 0
+                ? 'Your housemates owe you money for recent shared purchases.'
+                : displayBalance < 0
+                ? 'You have outstanding shared dues to pay to your housemates.'
+                : 'All shared room balances are completely balanced.'}
+            </p>
           </div>
-          <div className="relative z-10 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-black/40 backdrop-blur-xs">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 border border-brand-400/30 text-xs font-semibold text-brand-300 mb-2">
-                <span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse" />
-                Live Household Hub
+
+          {/* Supporting Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-6 mt-6 border-t border-[#E5DED3]">
+            <div className="bg-[#F2EEE7] p-3.5 rounded-2xl border border-[#E5DED3]">
+              <span className="text-[11px] font-bold text-[#687080] uppercase tracking-wider block">Total Paid</span>
+              <span className="text-base font-extrabold text-[#172033] mt-0.5 block">
+                {currencySymbol}{(myBalance?.totalPaid || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="bg-[#F2EEE7] p-3.5 rounded-2xl border border-[#E5DED3]">
+              <span className="text-[11px] font-bold text-[#687080] uppercase tracking-wider block">Your Share</span>
+              <span className="text-base font-extrabold text-[#172033] mt-0.5 block">
+                {currencySymbol}{(myBalance?.totalOwed || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="bg-[#F2EEE7] p-3.5 rounded-2xl border border-[#E5DED3] col-span-2 sm:col-span-1">
+              <span className="text-[11px] font-bold text-[#687080] uppercase tracking-wider block">Housemates</span>
+              <span className="text-base font-extrabold text-[#172033] mt-0.5 block">
+                {displayMemberCount} Active
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Connected Financial Overview (5 cols) */}
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-[#E5DED3] p-6 sm:p-8 shadow-card flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-extrabold text-[#172033] uppercase tracking-wider">Household Spending</h3>
+              <span className="text-xs font-bold text-[#5F402B] bg-[#F2EEE7] px-2.5 py-1 rounded-full border border-[#E5DED3]">
+                This Month
+              </span>
+            </div>
+
+            <div className="text-3xl font-extrabold text-[#172033] mb-1">
+              {currencySymbol}{displayTotalExpenses.toLocaleString('en-IN')}
+            </div>
+            <p className="text-xs text-[#687080] font-medium mb-4">
+              Total shared expenses recorded across all category ledgers.
+            </p>
+
+            {/* Contribution Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold">
+                <span className="text-[#687080]">Your Paid Share</span>
+                <span className="text-[#5F402B]">
+                  {displayTotalExpenses > 0
+                    ? Math.round(((myBalance?.totalPaid || 0) / displayTotalExpenses) * 100)
+                    : 0}%
+                </span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                {house?.name || 'FairShare Dashboard'}
-              </h2>
-              <p className="text-sm text-white/70 max-w-md mt-1">
-                Real-time shared balances, automated debt simplification, and Gemini AI insights.
-              </p>
-            </div>
-            <div className="flex gap-3 flex-wrap">
-              <button
-                id="hero-add-expense-btn"
-                onClick={() => setShowExpenseForm(true)}
-                className="btn-primary flex items-center gap-2 shadow-lg shadow-brand-500/30"
-              >
-                <Plus className="w-4 h-4" /> Add Expense
-              </button>
-              <button
-                id="hero-settle-up-btn"
-                onClick={() => setShowSettleModal(true)}
-                className="btn-secondary flex items-center gap-2 bg-dark-800/80 backdrop-blur-md"
-              >
-                <HandCoins className="w-4 h-4" /> Settle Up
-              </button>
+              <div className="w-full h-3 bg-[#F2EEE7] rounded-full overflow-hidden border border-[#E5DED3]">
+                <div
+                  className="h-full bg-[#5F402B] rounded-full transition-all duration-500"
+                  style={{
+                    width: `${
+                      displayTotalExpenses > 0
+                        ? Math.min(Math.round(((myBalance?.totalPaid || 0) / displayTotalExpenses) * 100), 100)
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="glass rounded-2xl p-5">
-            <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{currentMonth} Spending</p>
-            <p className="text-3xl font-bold">{currencySymbol}{monthlyTotal.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
-            <p className="text-xs text-white/30 mt-1">house total this month</p>
-          </div>
-          <div className={`rounded-2xl p-5 ${myBalance?.netBalance > 0 ? 'bg-emerald-500/10 border border-emerald-500/20' : myBalance?.netBalance < 0 ? 'bg-red-500/10 border border-red-500/20' : 'glass'}`}>
-            <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Your Balance</p>
-            <p className={`text-3xl font-bold ${myBalance?.netBalance > 0 ? 'text-emerald-400' : myBalance?.netBalance < 0 ? 'text-red-400' : 'text-white/60'}`}>
-              {myBalance ? `${myBalance.netBalance > 0 ? '+' : ''}${currencySymbol}${Math.abs(myBalance.netBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : `${currencySymbol}0`}
-            </p>
-            <p className="text-xs text-white/30 mt-1">
-              {!myBalance || myBalance.netBalance === 0 ? 'all settled' : myBalance.netBalance > 0 ? 'you are owed' : 'you owe'}
-            </p>
-          </div>
-          <div className="glass rounded-2xl p-5">
-            <p className="text-xs text-white/40 uppercase tracking-wider mb-1">House Members</p>
-            <p className="text-3xl font-bold">{members.length}</p>
-            <p className="text-xs text-white/30 mt-1">{expenses.length} expense{expenses.length !== 1 ? 's' : ''} logged</p>
+          <div className="pt-4 mt-4 border-t border-[#E5DED3] flex items-center justify-between text-xs font-bold text-[#172033]">
+            <span className="text-[#687080]">Total Logged Entries:</span>
+            <span className="px-2.5 py-1 rounded-lg bg-[#F2EEE7] border border-[#E5DED3] font-mono">
+              {displayExpenseCount} Expenses
+            </span>
           </div>
         </div>
+      </div>
 
-        {/* Invite Card */}
-        {house && <div className="mb-6"><HouseInviteCard house={house} members={members} /></div>}
-
-        {/* Action Buttons */}
-        <div className="flex gap-3 mb-6 flex-wrap">
-          <button
-            id="add-expense-btn"
-            onClick={() => setShowExpenseForm(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> Add Expense
-          </button>
-          <button
-            id="settle-up-btn"
-            onClick={() => setShowSettleModal(true)}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <HandCoins className="w-4 h-4" /> Settle Up
-          </button>
-          <button
-            id="export-csv-btn"
-            onClick={handleExportCSV}
-            className="btn-secondary flex items-center gap-2 hover:border-brand-500/50"
-            title="Download CSV spreadsheet"
-          >
-            <Download className="w-4 h-4 text-brand-400" /> Export CSV
-          </button>
-          <button
-            id="print-statement-btn"
-            onClick={handlePrintStatement}
-            className="btn-secondary flex items-center gap-2 hover:border-brand-500/50"
-            title="Print or save PDF statement"
-          >
-            <Printer className="w-4 h-4 text-brand-400" /> Print Statement
-          </button>
-          <Link to="/history" className="btn-secondary flex items-center gap-2">
-            <HistoryIcon className="w-4 h-4" /> Full History
-          </Link>
+      {/* Two Column Section: Spending by Category + Recent Expenses */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: Spending by Category Donut Chart */}
+        <div className="lg:col-span-6 bg-white rounded-2xl border border-[#E5DED3] p-6 shadow-card flex flex-col justify-between">
+          <h2 className="text-base font-extrabold text-[#172033] mb-4">Spending by Category</h2>
+          <CategoryDonutChart expenses={expenses} currencySymbol={currencySymbol} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex glass rounded-xl p-1 gap-1 mb-6 w-fit">
-          {[['balances', LayoutDashboard, 'Balances'], ['expenses', HistoryIcon, 'Recent Expenses']].map(([id, Icon, label]) => (
-            <button
-              key={id}
-              id={`tab-${id}`}
-              onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === id ? 'bg-brand-600 text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
-            >
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        {loadingData ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        {/* Right Column: Recent Expenses from Database */}
+        <div className="lg:col-span-6 bg-white rounded-2xl border border-[#E5DED3] p-6 shadow-card flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-extrabold text-[#172033]">Recent Expenses</h2>
+            <Link to="/expenses" className="text-xs font-bold text-[#5F402B] hover:text-[#4A3120] flex items-center gap-1">
+              View All <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-        ) : activeTab === 'balances' ? (
-          <BalanceSummary
-            houseId={house?._id}
-            balances={balances}
-            settlements={settlementSuggestions}
-            currencySymbol={currencySymbol}
-          />
-        ) : (
-          <ExpenseList
-            expenses={expenses.slice(0, 10)}
-            onDelete={loadHouseData}
-            currencySymbol={currencySymbol}
-          />
-        )}
+
+          <div className="space-y-3">
+            {expenses.length > 0 ? (
+              expenses.slice(0, 5).map((exp) => (
+                <div key={exp._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F2EEE7] transition-colors border border-[#E5DED3]">
+                  <div className="flex items-center gap-3">
+                    {getCategoryIcon(exp.category)}
+                    <div>
+                      <p className="text-xs font-bold text-[#172033]">{exp.description}</p>
+                      <p className="text-[11px] text-slate-400 font-medium">{formatDate(exp.date)}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-extrabold text-[#172033]">
+                    {currencySymbol}{exp.amount?.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-slate-400 text-xs font-medium border border-dashed border-[#E5DED3] rounded-xl bg-[#F2EEE7]/50">
+                No expenses logged yet in this room.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Dashboard Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <button
+          onClick={() => setShowExpenseForm(true)}
+          className="bg-white rounded-2xl border border-[#E5DED3] p-4 shadow-card hover:border-[#5F402B] transition-all text-left flex items-center gap-3 group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#F2EEE7] text-[#5F402B] flex items-center justify-center group-hover:bg-[#5F402B] group-hover:text-white transition-colors shrink-0">
+            <Plus className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-[#172033]">Add Expense</h3>
+            <p className="text-[11px] text-slate-400">Record a new expense</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate('/expenses')}
+          className="bg-white rounded-2xl border border-[#E5DED3] p-4 shadow-card hover:border-[#5F402B] transition-all text-left flex items-center gap-3 group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#F2EEE7] text-[#5F402B] flex items-center justify-center group-hover:bg-[#5F402B] group-hover:text-white transition-colors shrink-0">
+            <Receipt className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-[#172033]">View Expenses</h3>
+            <p className="text-[11px] text-slate-400">See all expenses</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate('/balances')}
+          className="bg-white rounded-2xl border border-[#E5DED3] p-4 shadow-card hover:border-[#5F402B] transition-all text-left flex items-center gap-3 group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#F2EEE7] text-[#5F402B] flex items-center justify-center group-hover:bg-[#5F402B] group-hover:text-white transition-colors shrink-0">
+            <Scale className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-[#10205C]">View Balances</h3>
+            <p className="text-[11px] text-slate-400">Check who owes whom</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setShowSettleModal(true)}
+          className="bg-white rounded-2xl border border-[#C8D7FF] p-4 shadow-card hover:border-[#2453FF] hover:shadow-blue transition-all text-left flex items-center gap-3 group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#EAF0FF] text-[#2453FF] flex items-center justify-center group-hover:bg-[#2453FF] group-hover:text-white transition-colors shrink-0">
+            <HandCoins className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-[#10205C]">Settle Up</h3>
+            <p className="text-[11px] text-slate-400">Record a payment</p>
+          </div>
+        </button>
       </div>
 
       {/* Modals */}
@@ -348,9 +385,6 @@ export default function Dashboard() {
           currencySymbol={currencySymbol}
         />
       )}
-
-      {/* AI Chatbot */}
-      {house && <ChatWidget houseId={house._id} userName={user?.name} onExpenseAdded={loadHouseData} />}
     </div>
   )
 }

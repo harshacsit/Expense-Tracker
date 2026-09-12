@@ -1,7 +1,7 @@
-import React from 'react'
+﻿import React from 'react'
 
 /**
- * ErrorBoundary — catches unhandled render errors and shows a friendly
+ * ErrorBoundary ΓÇö catches unhandled render errors and shows a friendly
  * error screen instead of a blank page. In dev mode it also prints the
  * full stack trace so you can debug quickly.
  */
@@ -16,7 +16,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('FairShare ErrorBoundary caught:', error, info)
+    console.error('SplitStay ErrorBoundary caught:', error, info)
   }
 
   render() {
@@ -27,7 +27,7 @@ class ErrorBoundary extends React.Component {
           alignItems: 'center', justifyContent: 'center', background: '#0a0a0f',
           color: '#fff', fontFamily: 'Inter, sans-serif', padding: '24px', textAlign: 'center'
         }}>
-          <div style={{ fontSize: '40px', marginBottom: '16px' }}>⚠️</div>
+          <div style={{ fontSize: '40px', marginBottom: '16px' }}>ΓÜá∩╕Å</div>
           <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Something went wrong</h2>
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginBottom: '24px', maxWidth: '480px' }}>
             {this.state.error?.message || 'An unexpected error occurred. Please refresh the page.'}
