@@ -10,9 +10,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  */
 const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || 'SplitStay <onboarding@resend.dev>',
+    from: process.env.RESEND_FROM_EMAIL || 'FairShare <onboarding@resend.dev>',
     to,
-    subject: 'Reset your SplitStay password',
+    subject: 'Reset your FairShare password',
     html: `
 <!DOCTYPE html>
 <html>
@@ -29,7 +29,7 @@ const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
           <!-- Header -->
           <tr>
             <td style="padding:32px 40px 24px;background:linear-gradient(135deg,#6070f5,#a855f7);text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">🏠 SplitStay</div>
+              <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">🏠 FairShare</div>
               <div style="color:rgba(255,255,255,0.75);font-size:13px;margin-top:4px;">Shared expense management</div>
             </td>
           </tr>
@@ -38,7 +38,7 @@ const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
             <td style="padding:36px 40px;">
               <h2 style="margin:0 0 12px;color:#fff;font-size:22px;font-weight:700;">Reset your password</h2>
               <p style="margin:0 0 24px;color:rgba(255,255,255,0.6);font-size:15px;line-height:1.6;">
-                Hi ${userName}! Someone (hopefully you) requested a password reset for your SplitStay account.
+                Hi ${userName}! Someone (hopefully you) requested a password reset for your FairShare account.
                 Click the button below to set a new password. This link expires in <strong style="color:#a78bfa;">10 minutes</strong>.
               </p>
               <div style="text-align:center;margin:32px 0;">
@@ -56,7 +56,7 @@ const sendPasswordResetEmail = async (to, resetLink, userName = 'there') => {
           <!-- Footer -->
           <tr>
             <td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
-              <p style="margin:0;color:rgba(255,255,255,0.2);font-size:12px;">© ${new Date().getFullYear()} SplitStay. All rights reserved.</p>
+              <p style="margin:0;color:rgba(255,255,255,0.2);font-size:12px;">© ${new Date().getFullYear()} FairShare. All rights reserved.</p>
             </td>
           </tr>
         </table>
@@ -98,7 +98,7 @@ const sendBalanceReminderEmail = async ({ to, debtorName, houseName, amount, cur
     : '';
 
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || 'SplitStay <onboarding@resend.dev>',
+    from: process.env.RESEND_FROM_EMAIL || 'FairShare <onboarding@resend.dev>',
     to,
     subject: `Friendly reminder: Pending balance in ${houseName}`,
     html: `
@@ -117,7 +117,7 @@ const sendBalanceReminderEmail = async ({ to, debtorName, houseName, amount, cur
           <!-- Header -->
           <tr>
             <td style="padding:32px 40px 24px;background:linear-gradient(135deg,#6070f5,#a855f7);text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">🏠 SplitStay</div>
+              <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">🏠 FairShare</div>
               <div style="color:rgba(255,255,255,0.75);font-size:13px;margin-top:4px;">Shared expense reminder</div>
             </td>
           </tr>
@@ -133,15 +133,14 @@ const sendBalanceReminderEmail = async ({ to, debtorName, houseName, amount, cur
                 <div style="color:#f87171;font-size:32px;font-weight:800;margin-top:4px;">-${currencySymbol}${Math.abs(amount).toFixed(2)}</div>
               </div>
               ${settlementListHtml}
-              <p style="margin:24px 0 0;color:rgba(255,255,255,0.5);font-size:13px;line-height:1.6;">
-                Please log in to your SplitStay dashboard to view full transaction breakdowns or record a settlement once paid.
+                Please log in to your FairShare dashboard to view full transaction breakdowns or record a settlement once paid.
               </p>
             </td>
           </tr>
           <!-- Footer -->
           <tr>
             <td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
-              <p style="margin:0;color:rgba(255,255,255,0.2);font-size:12px;">© ${new Date().getFullYear()} SplitStay. All rights reserved.</p>
+              <p style="margin:0;color:rgba(255,255,255,0.2);font-size:12px;">© ${new Date().getFullYear()} FairShare. All rights reserved.</p>
             </td>
           </tr>
         </table>

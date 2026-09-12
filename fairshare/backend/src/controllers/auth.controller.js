@@ -192,7 +192,7 @@ const deleteAccount = async (req, res) => {
     // Anonymize user record to preserve balance ledger integrity while purging credentials
     await User.findByIdAndUpdate(userId, {
       name: 'Former Member',
-      email: `deleted_${userId}@splitstay.local`,
+      email: `deleted_${userId}@fairshare.local`,
       password: null,
       googleId: null,
       avatar: null,
