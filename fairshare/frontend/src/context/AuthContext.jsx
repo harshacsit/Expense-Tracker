@@ -10,13 +10,12 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Restore session from localStorage
-    const stored = localStorage.getItem('fairshare_user') || localStorage.getItem('splitstay_user')
+    const stored = localStorage.getItem('fairshare_user')
     if (stored) {
       try {
         setUser(JSON.parse(stored))
       } catch {
         localStorage.removeItem('fairshare_user')
-        localStorage.removeItem('splitstay_user')
       }
     }
     setLoading(false)
@@ -31,8 +30,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null)
     localStorage.removeItem('fairshare_user')
     localStorage.removeItem('fairshare_house')
-    localStorage.removeItem('splitstay_user')
-    localStorage.removeItem('splitstay_house')
   }
 
   // Render the Provider unconditionally so useAuth() is always available.

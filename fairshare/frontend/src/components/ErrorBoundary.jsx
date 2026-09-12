@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 
 /**
  * ErrorBoundary ΓÇö catches unhandled render errors and shows a friendly
@@ -16,7 +16,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('SplitStay ErrorBoundary caught:', error, info)
+    console.error('FairShare ErrorBoundary caught:', error, info)
   }
 
   render() {

@@ -12,7 +12,7 @@ const axiosClient = axios.create({
 
 // Attach JWT token from localStorage on every request
 axiosClient.interceptors.request.use((config) => {
-  const stored = localStorage.getItem('fairshare_user') || localStorage.getItem('splitstay_user')
+  const stored = localStorage.getItem('fairshare_user')
   if (stored) {
     const user = JSON.parse(stored)
     if (user?.token) {
@@ -29,8 +29,6 @@ axiosClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('fairshare_user')
       localStorage.removeItem('fairshare_house')
-      localStorage.removeItem('splitstay_user')
-      localStorage.removeItem('splitstay_house')
       window.location.href = '/login'
     }
     return Promise.reject(error)

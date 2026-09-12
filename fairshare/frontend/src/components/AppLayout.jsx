@@ -34,7 +34,7 @@ export default function AppLayout({ children, house: propHouse, houses: propHous
   // Internal state for self-contained usage
   const [internalHouse, setInternalHouse] = useState(() => {
     if (propHouse) return propHouse
-    const stored = localStorage.getItem('fairshare_house') || localStorage.getItem('splitstay_house')
+    const stored = localStorage.getItem('fairshare_house')
     return stored ? JSON.parse(stored) : null
   })
   const [internalHouses, setInternalHouses] = useState(propHouses)

@@ -9,7 +9,7 @@ export default function Members({ house: propHouse }) {
   const { user } = useAuth()
   const [house, setHouse] = useState(() => {
     if (propHouse) return propHouse
-    const stored = localStorage.getItem('fairshare_house') || localStorage.getItem('splitstay_house')
+    const stored = localStorage.getItem('fairshare_house')
     return stored ? JSON.parse(stored) : null
   })
   const [members, setMembers] = useState([])

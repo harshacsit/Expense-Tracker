@@ -4,7 +4,7 @@ const User = require('../models/User');
 const { sendPasswordResetEmail } = require('../services/email.service');
 
 const generateToken = (id) => {
-  const secret = process.env.JWT_SECRET || 'splitstay_jwt_secret_dev_fallback_key_2024';
+  const secret = process.env.JWT_SECRET || 'fairshare_jwt_secret_dev_fallback_key_2026';
   return jwt.sign({ id }, secret, { expiresIn: '30d' });
 };
 

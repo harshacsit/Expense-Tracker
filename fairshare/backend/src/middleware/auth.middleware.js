@@ -7,7 +7,7 @@ const protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const secret = process.env.JWT_SECRET || 'splitstay_jwt_secret_dev_fallback_key_2024';
+      const secret = process.env.JWT_SECRET || 'fairshare_jwt_secret_dev_fallback_key_2026';
       const decoded = jwt.verify(token, secret);
       req.user = await User.findById(decoded.id).select('-password');
 
