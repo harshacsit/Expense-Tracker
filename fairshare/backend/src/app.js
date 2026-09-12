@@ -55,6 +55,9 @@ app.use('/api/houses/:id/chat', chatbotRoutes);
 // Standalone expense delete
 app.use('/api/expenses', standaloneExpenseRouter);
 
+// Root welcome endpoint
+app.get('/', (req, res) => res.json({ message: '🚀 FairShare API is running!', docs: '/api-docs', health: '/api/health' }));
+
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date().toISOString() }));
 
