@@ -10,6 +10,7 @@ import {
   Filter,
   MoreVertical,
   Trash2,
+  Pencil,
   Receipt,
   Wifi,
   Zap,
@@ -34,10 +35,24 @@ export default function Expenses({ house: propHouse }) {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
   const [showExpenseForm, setShowExpenseForm] = useState(false)
+  const [editingExpense, setEditingExpense] = useState(null)
 
   const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'month' | '3months' | 'year'
   const [searchQuery, setSearchQuery] = useState('')
   const [actionMenuOpen, setActionMenuOpen] = useState(null)
+
+  // Close actions menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('[data-action-menu]')) {
+        setActionMenuOpen(null)
+      }
+    }
+    if (actionMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [actionMenuOpen])
 
   // Fallback to fetch house if not present
   useEffect(() => {
@@ -218,7 +233,10 @@ export default function Expenses({ house: propHouse }) {
               <Printer className="w-3.5 h-3.5 text-[#5F402B]" /> Print
             </button>
             <button
-              onClick={() => setShowExpenseForm(true)}
+              onClick={() => {
+                setEditingExpense(null)
+                setShowExpenseForm(true)
+              }}
               className="btn-primary flex items-center gap-2 shadow-xs"
             >
               <Plus className="w-4 h-4" /> Add Expense
@@ -308,22 +326,33 @@ export default function Expenses({ house: propHouse }) {
                     <td className="py-3.5 px-4 text-right font-extrabold text-[#172033] text-sm">
                       {currencySymbol}{exp.amount?.toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3.5 px-4 text-center relative">
+                    <td className="py-3.5 px-4 text-center relative" data-action-menu="true">
                       <button
                         onClick={() => setActionMenuOpen(actionMenuOpen === exp._id ? null : exp._id)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-[#F2EEE7]"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-[#F2EEE7] transition-colors"
+                        title="Actions"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
 
                       {actionMenuOpen === exp._id && (
-                        <div className="absolute right-4 mt-1 bg-white rounded-xl border border-[#E5DED3] shadow-card py-1 z-20 text-xs w-28">
+                        <div className="absolute right-4 mt-1 bg-white rounded-xl border border-[#E5DED3] shadow-card py-1 z-30 text-xs w-32 divide-y divide-[#E5DED3]/40">
+                          <button
+                            onClick={() => {
+                              setActionMenuOpen(null)
+                              setEditingExpense(exp)
+                              setShowExpenseForm(true)
+                            }}
+                            className="w-full text-left px-3.5 py-2 text-[#172033] hover:bg-[#F2EEE7] flex items-center gap-2 font-bold transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-[#5F402B]" /> Edit
+                          </button>
                           <button
                             onClick={() => {
                               setActionMenuOpen(null)
                               handleDeleteExpense(exp._id)
                             }}
-                            className="w-full text-left px-3 py-1.5 text-[#D65B57] hover:bg-[#FDF0EF] flex items-center gap-2 font-bold"
+                            className="w-full text-left px-3.5 py-2 text-[#D65B57] hover:bg-[#FDF0EF] flex items-center gap-2 font-bold transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Delete
                           </button>
@@ -343,13 +372,17 @@ export default function Expenses({ house: propHouse }) {
           )}
         </div>
 
-        {/* Add Expense Modal */}
+        {/* Add / Edit Expense Modal */}
         {showExpenseForm && (
           <ExpenseForm
             houseId={house?._id}
             members={members}
+            expenseToEdit={editingExpense}
             onSuccess={loadData}
-            onClose={() => setShowExpenseForm(false)}
+            onClose={() => {
+              setShowExpenseForm(false)
+              setEditingExpense(null)
+            }}
             currencySymbol={currencySymbol}
           />
         )}

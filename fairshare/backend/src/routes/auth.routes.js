@@ -87,7 +87,7 @@ if (googleConfigured) {
 
   router.get('/google/callback', (req, res, next) => {
     passport.authenticate('google', { session: false }, (err, user, info) => {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
       if (err) {
         console.error('❌ [Google Callback Error]:', err);
         const msg = encodeURIComponent(err.message || 'Google authentication failed');

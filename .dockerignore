@@ -1,0 +1,10 @@
+node_modules
+*/node_modules
+splitstay
+.git
+.github
+*.log
+tests
+*/tests
+.env
+.env.*

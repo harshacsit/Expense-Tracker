@@ -118,15 +118,21 @@ const getExpenses = async (req, res) => {
   }
 };
 
-// @desc  Delete an expense (only creator can delete)
+// @desc  Delete an expense (creator or admin can delete)
 // @route DELETE /api/expenses/:id
 const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
     if (!expense) return res.status(404).json({ message: 'Expense not found' });
 
-    if (expense.paidById.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You can only delete expenses you created' });
+    const isCreator = expense.paidById.toString() === req.user._id.toString();
+    const membership = await HouseMember.findOne({ houseId: expense.houseId, userId: req.user._id });
+    if (!membership) {
+      return res.status(403).json({ message: 'You are not a member of this house' });
+    }
+    const isAdmin = membership.role === 'admin' || membership.role === 'owner';
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ message: 'You can only delete expenses you created or as house admin' });
     }
 
     // Delete associated shares first
@@ -134,6 +140,79 @@ const deleteExpense = async (req, res) => {
     await expense.deleteOne();
 
     res.json({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc  Update an existing expense
+// @route PUT /api/expenses/:id
+const updateExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) return res.status(404).json({ message: 'Expense not found' });
+
+    const isCreator = expense.paidById.toString() === req.user._id.toString();
+    const membership = await HouseMember.findOne({ houseId: expense.houseId, userId: req.user._id });
+    if (!membership) {
+      return res.status(403).json({ message: 'You are not a member of this house' });
+    }
+    const isAdmin = membership.role === 'admin' || membership.role === 'owner';
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ message: 'You can only edit expenses you created or as house admin' });
+    }
+
+    const { amount, category, description, splitType, customShares, percentageShares, paidById } = req.body;
+
+    if (category) expense.category = category;
+    if (description !== undefined) expense.description = description;
+    if (paidById) expense.paidById = paidById;
+
+    const newAmount = amount !== undefined ? parseFloat(amount) : expense.amount;
+    const newSplitType = (splitType || expense.splitType || 'equal').toLowerCase();
+    const houseId = expense.houseId;
+
+    const memberships = await HouseMember.find({ houseId }).populate('userId', 'name email');
+    const memberIds = memberships.map((m) => m.userId._id.toString());
+    const targetMemberIds = (Array.isArray(req.body.memberIds) && req.body.memberIds.length > 0)
+      ? req.body.memberIds
+      : memberIds;
+
+    let shares;
+    try {
+      if ((newSplitType === 'percentage' || newSplitType === 'percent') && (percentageShares || customShares)) {
+        shares = calculatePercentageSplit(newAmount, percentageShares || customShares);
+      } else if ((newSplitType === 'custom' || newSplitType === 'exact') && customShares) {
+        shares = calculateCustomSplit(newAmount, customShares);
+      } else {
+        shares = calculateEqualSplit(newAmount, targetMemberIds);
+      }
+    } catch (splitError) {
+      return res.status(400).json({ message: splitError.message });
+    }
+
+    expense.amount = newAmount;
+    expense.splitType = splitType || expense.splitType;
+
+    // Delete old shares and insert updated ones
+    await ExpenseShare.deleteMany({ expenseId: expense._id });
+    const shareDocuments = shares.map((s) => ({
+      expenseId: expense._id,
+      userId: s.userId,
+      houseId,
+      amountOwed: s.amountOwed,
+    }));
+    await ExpenseShare.insertMany(shareDocuments);
+
+    await expense.save();
+
+    const populatedExpense = await Expense.findById(expense._id).populate('paidById', 'name email');
+    const currentShares = await ExpenseShare.find({ expenseId: expense._id }).populate('userId', 'name');
+
+    res.json({
+      expense: { ...populatedExpense.toObject(), shares: currentShares },
+      message: 'Expense updated successfully',
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -156,4 +235,4 @@ const scanReceipt = async (req, res) => {
   }
 };
 
-module.exports = { addExpense, getExpenses, deleteExpense, scanReceipt };
+module.exports = { addExpense, getExpenses, deleteExpense, updateExpense, scanReceipt };

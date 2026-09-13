@@ -4,13 +4,21 @@ import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { X, Upload, Check, FileText, Camera, Trash2, AlertCircle } from 'lucide-react'
 
-export default function ExpenseForm({ houseId, members: initialMembers = [], onSuccess, onClose, currencySymbol = '₹' }) {
+export default function ExpenseForm({
+  houseId,
+  members: initialMembers = [],
+  expenseToEdit = null,
+  onSuccess,
+  onClose,
+  currencySymbol = '₹'
+}) {
   const { user } = useAuth()
+  const isEditing = Boolean(expenseToEdit)
   const [members, setMembers] = useState(initialMembers || [])
   const [entryMode, setEntryMode] = useState('manual')
-  const [description, setDescription] = useState('')
-  const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState('Groceries')
+  const [description, setDescription] = useState(expenseToEdit?.description || '')
+  const [amount, setAmount] = useState(expenseToEdit?.amount !== undefined ? String(expenseToEdit.amount) : '')
+  const [category, setCategory] = useState(expenseToEdit?.category || 'Groceries')
 
   const parsedTotal = parseFloat(amount) || 0
 
@@ -36,24 +44,41 @@ export default function ExpenseForm({ houseId, members: initialMembers = [], onS
     return list
   }, [members, user])
 
-  // Default Paid By to the logged-in user if present in members list
+  // Default Paid By
   const defaultPaidBy = useMemo(() => {
+    if (expenseToEdit) {
+      const pId = expenseToEdit.paidById?._id || expenseToEdit.paidById
+      if (pId) return String(pId)
+    }
     const found = safeMembers.find((m) => String(m.userId?._id || m.userId || m._id) === String(user?._id))
     if (found) return String(found.userId?._id || found.userId || found._id)
     return String(safeMembers[0]?.userId?._id || safeMembers[0]?.userId || safeMembers[0]?._id || user?._id || '')
-  }, [safeMembers, user?._id])
+  }, [expenseToEdit, safeMembers, user?._id])
 
   const [paidById, setPaidById] = useState(defaultPaidBy)
-  const [splitType, setSplitType] = useState('equal')
-  const [customShares, setCustomShares] = useState({})
+  const [splitType, setSplitType] = useState(expenseToEdit?.splitType || 'equal')
+  const [customShares, setCustomShares] = useState(() => {
+    if (expenseToEdit?.shares && Array.isArray(expenseToEdit.shares)) {
+      const map = {}
+      expenseToEdit.shares.forEach((s) => {
+        const uid = String(s.userId?._id || s.userId || s._id || '')
+        if (uid) map[uid] = s.amountOwed !== undefined ? String(s.amountOwed) : ''
+      })
+      return map
+    }
+    return {}
+  })
 
   // Selected member IDs for splitting
-  const [selectedMemberIds, setSelectedMemberIds] = useState(
-    () => safeMembers.map((m) => String(m.userId?._id || m.userId || m._id))
-  )
+  const [selectedMemberIds, setSelectedMemberIds] = useState(() => {
+    if (expenseToEdit?.shares && Array.isArray(expenseToEdit.shares) && expenseToEdit.shares.length > 0) {
+      return expenseToEdit.shares.map((s) => String(s.userId?._id || s.userId || s._id))
+    }
+    return safeMembers.map((m) => String(m.userId?._id || m.userId || m._id))
+  })
 
   useEffect(() => {
-    if (safeMembers && safeMembers.length > 0) {
+    if (!expenseToEdit && safeMembers && safeMembers.length > 0) {
       const allIds = safeMembers.map((m) => String(m.userId?._id || m.userId || m._id))
       if (selectedMemberIds.length === 0) {
         setSelectedMemberIds(allIds)
@@ -174,21 +199,34 @@ export default function ExpenseForm({ houseId, members: initialMembers = [], onS
 
     setLoading(true)
     try {
-      await axiosClient.post(`/houses/${houseId}/expenses`, {
-        description: description.trim(),
-        amount: parsedTotal,
-        category,
-        paidById,
-        splitType,
-        memberIds: selectedMemberIds,
-        customShares: payloadShares.length > 0 ? payloadShares : undefined,
-      })
+      if (isEditing) {
+        await axiosClient.put(`/expenses/${expenseToEdit._id}`, {
+          description: description.trim(),
+          amount: parsedTotal,
+          category,
+          paidById,
+          splitType,
+          memberIds: selectedMemberIds,
+          customShares: payloadShares.length > 0 ? payloadShares : undefined,
+        })
+        toast.success('Expense updated successfully! 💸')
+      } else {
+        await axiosClient.post(`/houses/${houseId}/expenses`, {
+          description: description.trim(),
+          amount: parsedTotal,
+          category,
+          paidById,
+          splitType,
+          memberIds: selectedMemberIds,
+          customShares: payloadShares.length > 0 ? payloadShares : undefined,
+        })
+        toast.success('Expense added successfully! 💸')
+      }
 
-      toast.success('Expense added successfully! 💸')
       onSuccess?.()
       onClose()
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to add expense')
+      toast.error(err.response?.data?.message || (isEditing ? 'Failed to update expense' : 'Failed to add expense'))
     } finally {
       setLoading(false)
     }
@@ -199,7 +237,9 @@ export default function ExpenseForm({ houseId, members: initialMembers = [], onS
       <div className="bg-white w-full max-w-lg rounded-2xl border border-[#E5DED3] shadow-2xl overflow-hidden my-6">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5DED3]">
-          <h2 className="text-lg font-extrabold text-[#172033]">Add Expense</h2>
+          <h2 className="text-lg font-extrabold text-[#172033]">
+            {isEditing ? 'Edit Expense' : 'Add Expense'}
+          </h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-[#687080] hover:text-[#172033] hover:bg-[#F2EEE7] transition-colors"
@@ -461,7 +501,7 @@ export default function ExpenseForm({ houseId, members: initialMembers = [], onS
               disabled={loading || !validationState.valid}
               className="btn-primary"
             >
-              {loading ? 'Adding...' : 'Add Expense'}
+              {loading ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add Expense')}
             </button>
           </div>
         </form>

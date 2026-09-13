@@ -169,7 +169,7 @@ const googleCallback = (req, res) => {
     const user = req.user; // set by passport
     if (!user) throw new Error('No authenticated user object found');
     const token = generateToken(user._id);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 
     console.log(`[Google Auth] Successfully generated session for user: ${user.email}`);
 
@@ -179,7 +179,7 @@ const googleCallback = (req, res) => {
     );
   } catch (error) {
     console.error('❌ [Google Callback Controller Error]:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
     res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error.message || 'oauth_failed')}`);
   }
 };
