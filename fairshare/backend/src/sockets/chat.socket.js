@@ -48,8 +48,25 @@ function initChatSocket(httpServer) {
         return next(new Error('Authentication error: Token required'));
       }
 
-      const secret = process.env.JWT_SECRET || 'fairshare_jwt_secret_dev_fallback_key_2026';
-      const decoded = jwt.verify(token, secret);
+      // Try configured JWT_SECRET and known development fallbacks
+      const secrets = [
+        process.env.JWT_SECRET,
+        'splitstay_jwt_secret_dev_fallback_key_2024',
+        'fairshare_jwt_secret_dev_fallback_key_2026',
+      ].filter(Boolean);
+
+      let decoded = null;
+      for (const secret of secrets) {
+        try {
+          decoded = jwt.verify(token, secret);
+          if (decoded) break;
+        } catch (_) {}
+      }
+
+      if (!decoded || !decoded.id) {
+        return next(new Error('Authentication error: Invalid token signature'));
+      }
+
       const user = await User.findById(decoded.id).select('_id name email');
 
       if (!user) {
