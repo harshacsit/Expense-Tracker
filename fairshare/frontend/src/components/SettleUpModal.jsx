@@ -4,9 +4,27 @@ import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { X, Upload, HandCoins, FileText, Trash2 } from 'lucide-react'
 
+const getMemberId = (m) => String(m?.userId?._id || m?.userId?.id || m?.userId || m?._id || m?.id || '')
+const getMemberName = (m) => {
+  if (!m) return 'Member'
+  return (
+    m.userId?.name ||
+    m.name ||
+    (m.userId?.email ? m.userId.email.split('@')[0] : null) ||
+    (m.email ? m.email.split('@')[0] : null) ||
+    'Member'
+  )
+}
+
 export default function SettleUpModal({ houseId, members, onSuccess, onClose, currencySymbol = '₹' }) {
   const { user } = useAuth()
-  const [payerId, setPayerId] = useState(user?._id || members[0]?.userId?._id || '')
+  const [payerId, setPayerId] = useState(() => {
+    const myId = String(user?._id || user?.id || '')
+    const found = members?.find((m) => getMemberId(m) === myId)
+    if (found) return getMemberId(found)
+    if (members && members.length > 0) return getMemberId(members[0])
+    return myId
+  })
   const [payeeId, setPayeeId] = useState('')
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
@@ -82,11 +100,12 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
               onChange={(e) => setPayerId(e.target.value)}
             >
               {members.map((m) => {
-                const mId = m.userId?._id || m.userId
-                const isMe = mId === user?._id
+                const mId = getMemberId(m)
+                const mName = getMemberName(m)
+                const isMe = mId === String(user?._id || user?.id || '')
                 return (
                   <option key={mId} value={mId}>
-                    {m.userId?.name || 'Member'} {isMe ? '(You)' : ''}
+                    {mName} {isMe ? '(You)' : ''}
                   </option>
                 )
               })}
@@ -103,12 +122,13 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
               required
             >
               <option value="">Select recipient...</option>
-              {members.filter((m) => (m.userId?._id || m.userId) !== payerId).map((m) => {
-                const mId = m.userId?._id || m.userId
-                const isMe = mId === user?._id
+              {members.filter((m) => getMemberId(m) !== String(payerId)).map((m) => {
+                const mId = getMemberId(m)
+                const mName = getMemberName(m)
+                const isMe = mId === String(user?._id || user?.id || '')
                 return (
                   <option key={mId} value={mId}>
-                    {m.userId?.name || 'Member'} {isMe ? '(You)' : ''}
+                    {mName} {isMe ? '(You)' : ''}
                   </option>
                 )
               })}

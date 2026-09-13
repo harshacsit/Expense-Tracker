@@ -132,12 +132,12 @@ export default function Members({ house: propHouse }) {
                   <div key={m._id || memberUser._id} className="p-4 flex items-center justify-between hover:bg-[#F2EEE7]/40 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[#5F402B] text-white font-bold text-sm flex items-center justify-center shadow-xs">
-                        {getInitials(memberUser.name)}
+                        {getInitials(memberUser.name || memberUser.email)}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-bold text-[#172033]">
-                            {memberUser.name || 'Member'}
+                            {memberUser.name || (memberUser.email ? memberUser.email.split('@')[0] : 'Member')}
                           </p>
                           {isMe && (
                             <span className="px-2 py-0.5 rounded-md bg-[#F2EEE7] text-[#5F402B] text-[10px] font-bold">

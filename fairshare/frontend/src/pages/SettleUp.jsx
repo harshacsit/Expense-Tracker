@@ -7,6 +7,18 @@ import AppLayout from '../components/AppLayout'
 import { Upload, FileText, Trash2, HandCoins } from 'lucide-react'
 import { getCurrencySymbol } from '../utils/exportUtils'
 
+const getMemberId = (m) => String(m?.userId?._id || m?.userId?.id || m?.userId || m?._id || m?.id || '')
+const getMemberName = (m) => {
+  if (!m) return 'Member'
+  return (
+    m.userId?.name ||
+    m.name ||
+    (m.userId?.email ? m.userId.email.split('@')[0] : null) ||
+    (m.email ? m.email.split('@')[0] : null) ||
+    'Member'
+  )
+}
+
 export default function SettleUp({ house: propHouse }) {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -46,13 +58,14 @@ export default function SettleUp({ house: propHouse }) {
       const { data } = await axiosClient.get(`/houses/${house._id}/members`)
       setMembers(data || [])
       if (data && data.length > 0 && !payerId) {
-        const found = data.find((m) => (m.userId?._id || m.userId) === user?._id)
-        setPayerId(found ? (found.userId?._id || found.userId) : (data[0]?.userId?._id || data[0]?.userId))
+        const myId = String(user?._id || user?.id || '')
+        const found = data.find((m) => getMemberId(m) === myId)
+        setPayerId(found ? getMemberId(found) : getMemberId(data[0]))
       }
     } catch (err) {
       toast.error('Failed to load house members')
     }
-  }, [house?._id, payerId, user?._id])
+  }, [house?._id, payerId, user?._id, user?.id])
 
   useEffect(() => {
     loadMembers()
@@ -118,11 +131,12 @@ export default function SettleUp({ house: propHouse }) {
                 onChange={(e) => setPayerId(e.target.value)}
               >
                 {members.map((m) => {
-                  const mId = m.userId?._id || m.userId
-                  const isMe = mId === user?._id
+                  const mId = getMemberId(m)
+                  const mName = getMemberName(m)
+                  const isMe = mId === String(user?._id || user?.id || '')
                   return (
                     <option key={mId} value={mId}>
-                      {m.userId?.name || 'Member'} {isMe ? '(You)' : ''}
+                      {mName} {isMe ? '(You)' : ''}
                     </option>
                   )
                 })}
@@ -139,12 +153,13 @@ export default function SettleUp({ house: propHouse }) {
                 required
               >
                 <option value="">Select recipient...</option>
-                {members.filter((m) => (m.userId?._id || m.userId) !== payerId).map((m) => {
-                  const mId = m.userId?._id || m.userId
-                  const isMe = mId === user?._id
+                {members.filter((m) => getMemberId(m) !== String(payerId)).map((m) => {
+                  const mId = getMemberId(m)
+                  const mName = getMemberName(m)
+                  const isMe = mId === String(user?._id || user?.id || '')
                   return (
                     <option key={mId} value={mId}>
-                      {m.userId?.name || 'Member'} {isMe ? '(You)' : ''}
+                      {mName} {isMe ? '(You)' : ''}
                     </option>
                   )
                 })}
