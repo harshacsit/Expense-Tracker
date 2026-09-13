@@ -26,21 +26,24 @@ export function SocketProvider({ children }) {
       return
     }
 
-    // Resolve socket server base URL (remove trailing /api if present)
-    const rawUrl =
-      import.meta.env.VITE_API_URL ||
-      (import.meta.env.PROD
-        ? 'https://fairshare-backend-mvl7.onrender.com'
-        : 'http://localhost:5000')
-
-    const socketUrl = rawUrl.replace(/\/api\/?$/, '').replace(/\/$/, '')
+    // Resolve socket server base URL
+    let socketUrl = ''
+    const envApiUrl = import.meta.env.VITE_API_URL
+    if (envApiUrl && envApiUrl.trim()) {
+      socketUrl = envApiUrl.trim().replace(/\/api\/?$/, '').replace(/\/$/, '')
+    } else if (import.meta.env.PROD) {
+      socketUrl = 'https://fairshare-backend-mvl7.onrender.com'
+    } else {
+      // In dev mode, connect to current origin (e.g. localhost:3000) which proxies /socket.io via Vite
+      socketUrl = window.location.origin
+    }
 
     const socketInstance = io(socketUrl, {
       auth: { token: user.token },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1500,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
     })
 
     socketRef.current = socketInstance
