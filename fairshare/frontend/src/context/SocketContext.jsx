@@ -1,11 +1,15 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { io } from 'socket.io-client'
 import { useAuth } from './AuthContext'
 
-const SocketContext = createContext(null)
+export const SocketContext = createContext(null)
 
 export const useSocket = () => {
-  return useContext(SocketContext)
+  const context = useContext(SocketContext)
+  if (!context) {
+    return { socket: null, isConnected: false, onlineUserIds: new Set() }
+  }
+  return context
 }
 
 export function SocketProvider({ children }) {
@@ -34,16 +38,16 @@ export function SocketProvider({ children }) {
     } else if (import.meta.env.PROD) {
       socketUrl = 'https://fairshare-backend-mvl7.onrender.com'
     } else {
-      // In dev mode, connect to current origin (e.g. localhost:3000) which proxies /socket.io via Vite
-      socketUrl = window.location.origin
+      socketUrl = 'http://localhost:5000'
     }
 
     const socketInstance = io(socketUrl, {
       auth: { token: user.token },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 15,
+      reconnectionAttempts: 20,
       reconnectionDelay: 1000,
+      timeout: 10000,
     })
 
     socketRef.current = socketInstance
@@ -56,8 +60,7 @@ export function SocketProvider({ children }) {
       setIsConnected(false)
     })
 
-    socketInstance.on('connect_error', (err) => {
-      console.warn('[Socket connection error]:', err.message)
+    socketInstance.on('connect_error', () => {
       setIsConnected(false)
     })
 
