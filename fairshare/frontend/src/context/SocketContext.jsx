@@ -43,7 +43,7 @@ export function SocketProvider({ children }) {
 
     const socketInstance = io(socketUrl, {
       auth: { token: user.token },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 1000,
