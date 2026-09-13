@@ -8,6 +8,7 @@ const houseRoutes = require('./routes/house.routes');
 const balanceRouter = require('./routes/balance.routes');
 const settlementRoutes = require('./routes/settlement.routes');
 const chatbotRoutes = require('./routes/chatbot.routes');
+const { houseChatRouter, standaloneChatRouter } = require('./routes/chat.routes');
 const { expenseRouter, standaloneExpenseRouter } = require('./routes/expense.routes');
 const { protect } = require('./middleware/auth.middleware');
 const { requireHouseMember } = require('./middleware/house.middleware');
@@ -51,8 +52,10 @@ app.use('/api/houses/:id/expenses', expenseRouter);
 app.use('/api/houses/:id/balances', balanceRouter);
 app.use('/api/houses/:id/settlements', settlementRoutes);
 app.use('/api/houses/:id/chat', chatbotRoutes);
+app.use('/api/houses/:id/chat', houseChatRouter);
 
-// Standalone expense delete
+// Standalone chat & expense routes
+app.use('/api/chat', standaloneChatRouter);
 app.use('/api/expenses', standaloneExpenseRouter);
 
 // Root welcome endpoint

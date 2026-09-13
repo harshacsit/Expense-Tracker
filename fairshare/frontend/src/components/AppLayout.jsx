@@ -18,7 +18,8 @@ import {
   User as UserIcon,
   Copy,
   Check,
-  Plus
+  Plus,
+  MessagesSquare
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -123,6 +124,7 @@ export default function AppLayout({ children, house: propHouse, houses: propHous
     { label: 'Balances', path: '/balances', icon: Scale },
     { label: 'Members', path: '/members', icon: Users },
     { label: 'Settle Up', path: '/settle-up', icon: HandCoins },
+    { label: 'Chat', path: '/chat', icon: MessagesSquare },
   ]
 
   const currentPath = location.pathname
