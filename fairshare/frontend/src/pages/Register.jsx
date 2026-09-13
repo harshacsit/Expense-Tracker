@@ -33,7 +33,7 @@ export default function Register() {
     try {
       const { data } = await axiosClient.post('/auth/register', form)
       login(data)
-      toast.success('Account created! Let\'s set up your house ≡ƒÅá')
+      toast.success("Account created! Let's set up your house 🏠")
       navigate('/setup')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed')

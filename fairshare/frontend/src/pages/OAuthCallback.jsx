@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react'
+import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -27,7 +27,7 @@ export default function OAuthCallback() {
 
     // Store user in AuthContext (same shape as regular login)
     login({ _id: id, name, email, token })
-    toast.success(`Welcome, ${name}! ≡ƒÅá`)
+    toast.success(`Welcome, ${name}! 🏠`)
     navigate('/dashboard')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

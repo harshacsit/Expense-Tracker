@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
@@ -32,7 +32,7 @@ export default function HouseSetup({ onSelectHouse }) {
       const { data } = await axiosClient.post('/houses', { name: houseName.trim(), currency })
       localStorage.setItem('fairshare_house', JSON.stringify(data.house))
       onSelectHouse?.(data.house)
-      toast.success(`Room "${data.house.name}" created! ≡ƒÅá`)
+      toast.success(`Room "${data.house.name}" created! 🏠`)
       navigate('/dashboard')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create room')
@@ -50,7 +50,7 @@ export default function HouseSetup({ onSelectHouse }) {
       const { data } = await axiosClient.post('/houses/join', { inviteCode: inviteCode.trim().toUpperCase() })
       localStorage.setItem('fairshare_house', JSON.stringify(data.house))
       onSelectHouse?.(data.house)
-      toast.success(`Joined "${data.house.name}"! ≡ƒÄë`)
+      toast.success(`Joined "${data.house.name}"! 🎉`)
       navigate('/dashboard')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to join room')
@@ -154,10 +154,10 @@ export default function HouseSetup({ onSelectHouse }) {
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                 >
-                  <option value="INR">Γé╣ INR (Indian Rupee)</option>
+                  <option value="INR">₹ INR (Indian Rupee)</option>
                   <option value="USD">$ USD (US Dollar)</option>
-                  <option value="EUR">Γé¼ EUR (Euro)</option>
-                  <option value="GBP">┬ú GBP (British Pound)</option>
+                  <option value="EUR">€ EUR (Euro)</option>
+                  <option value="GBP">£ GBP (British Pound)</option>
                 </select>
               </div>
 

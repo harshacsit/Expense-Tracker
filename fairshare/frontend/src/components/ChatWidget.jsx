@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { MessageCircle, X, Send, Bot, RotateCcw } from 'lucide-react'
 import { useChatbot } from '../hooks/useChatbot'
 
@@ -36,12 +36,12 @@ export default function ChatWidget({ houseId, userName, onExpenseAdded }) {
   }
 
   const QUICK_PROMPTS = [
-    { label: 'Γ£¿ Add an expense', text: 'I paid Γé╣600 for internet, split equally' },
-    { label: '≡ƒÆ░ How much do I owe?', text: 'How much do I owe right now?' },
-    { label: '≡ƒæÑ Who owes whom?', text: 'Who owes whom in our house?' },
-    { label: '≡ƒôè Show my spending', text: 'Show me our spending summary for this month' },
-    { label: '≡ƒñ¥ How should we settle up?', text: 'What is the easiest way to settle all house debts?' },
-    { label: '≡ƒÆí Explain categories', text: 'Explain the expense categories' },
+    { label: '✨ Add an expense', text: 'I paid ₹600 for internet, split equally' },
+    { label: '💰 How much do I owe?', text: 'How much do I owe right now?' },
+    { label: '👥 Who owes whom?', text: 'Who owes whom in our house?' },
+    { label: '📊 Show my spending', text: 'Show me our spending summary for this month' },
+    { label: '🤝 How should we settle up?', text: 'What is the easiest way to settle all house debts?' },
+    { label: '💡 Explain categories', text: 'Explain the expense categories' },
   ]
 
   return (

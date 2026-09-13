@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import axiosClient from '../api/axiosClient'
 import ExpenseList from '../components/ExpenseList'
@@ -47,10 +47,10 @@ export default function History() {
   const handleExportCSV = () => {
     try {
       if (expenses.length === 0) {
-        toast('No expenses in this view. Generating template CSV...', { icon: '≡ƒôä' })
+        toast('No expenses in this view. Generating template CSV...', { icon: '📄' })
       }
       exportExpensesToCSV(house?.name, expenses, currencySymbol)
-      toast.success('CSV downloaded! ≡ƒôè')
+      toast.success('CSV downloaded! 📊')
     } catch (err) {
       toast.error(err.message || 'Export failed')
     }

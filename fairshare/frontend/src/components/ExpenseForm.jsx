@@ -1,10 +1,10 @@
-﻿import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { X, Upload, Check, FileText, Camera, Trash2, AlertCircle } from 'lucide-react'
 
-export default function ExpenseForm({ houseId, members: initialMembers = [], onSuccess, onClose, currencySymbol = 'Γé╣' }) {
+export default function ExpenseForm({ houseId, members: initialMembers = [], onSuccess, onClose, currencySymbol = '₹' }) {
   const { user } = useAuth()
   const [members, setMembers] = useState(initialMembers || [])
   const [entryMode, setEntryMode] = useState('manual')
@@ -184,7 +184,7 @@ export default function ExpenseForm({ houseId, members: initialMembers = [], onS
         customShares: payloadShares.length > 0 ? payloadShares : undefined,
       })
 
-      toast.success('Expense added successfully! ≡ƒÆ╕')
+      toast.success('Expense added successfully! 💸')
       onSuccess?.()
       onClose()
     } catch (err) {

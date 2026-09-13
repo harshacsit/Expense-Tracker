@@ -1,4 +1,4 @@
-﻿import axiosClient from '../api/axiosClient'
+import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { Trash2, ShoppingCart, Zap, Wifi, Flame, Tv, Tag, Home } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -16,7 +16,7 @@ const categoryConfig = {
 const formatDate = (d) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 
-export default function ExpenseList({ expenses, onDelete, currencySymbol = 'Γé╣' }) {
+export default function ExpenseList({ expenses, onDelete, currencySymbol = '₹' }) {
   const { user } = useAuth()
 
   const handleDelete = async (expense) => {

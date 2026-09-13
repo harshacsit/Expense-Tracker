@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { TrendingUp, TrendingDown, Minus, ArrowRight, BellRing, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 
 const getInitials = (name) => name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
 
-export default function BalanceSummary({ houseId, balances, settlements, currencySymbol = 'Γé╣' }) {
+export default function BalanceSummary({ houseId, balances, settlements, currencySymbol = '₹' }) {
   const { user } = useAuth()
   const [sendingReminder, setSendingReminder] = useState(false)
 
@@ -111,7 +111,7 @@ export default function BalanceSummary({ houseId, balances, settlements, currenc
       {settlements && settlements.length > 0 && (
         <div className="saas-card p-4">
           <h4 className="text-xs font-bold text-[#687080] mb-3 uppercase tracking-wider">
-            ≡ƒÆí Suggested Settlements ({settlements.length} payment{settlements.length > 1 ? 's' : ''})
+            💡 Suggested Settlements ({settlements.length} payment{settlements.length > 1 ? 's' : ''})
           </h4>
           <div className="space-y-2">
             {settlements.map((s, i) => (

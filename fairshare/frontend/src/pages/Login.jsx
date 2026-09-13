@@ -39,7 +39,7 @@ export default function Login() {
         password: form.password,
       })
       login(data)
-      toast.success(`Welcome back, ${data.name}! ≡ƒÅá`)
+      toast.success(`Welcome back, ${data.name}! 🏠`)
       navigate('/dashboard')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid email or password')

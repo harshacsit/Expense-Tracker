@@ -1,10 +1,10 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import axiosClient from '../api/axiosClient'
 import toast from 'react-hot-toast'
 import { X, Upload, HandCoins, FileText, Trash2 } from 'lucide-react'
 
-export default function SettleUpModal({ houseId, members, onSuccess, onClose, currencySymbol = 'Γé╣' }) {
+export default function SettleUpModal({ houseId, members, onSuccess, onClose, currencySymbol = '₹' }) {
   const { user } = useAuth()
   const [payerId, setPayerId] = useState(user?._id || members[0]?.userId?._id || '')
   const [payeeId, setPayeeId] = useState('')
@@ -41,7 +41,7 @@ export default function SettleUpModal({ houseId, members, onSuccess, onClose, cu
         note: note.trim() || undefined,
       })
 
-      toast.success('Settlement recorded successfully! ≡ƒñ¥')
+      toast.success('Settlement recorded successfully! 🤝')
       onSuccess?.()
       onClose()
     } catch (err) {
