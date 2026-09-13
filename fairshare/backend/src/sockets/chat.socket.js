@@ -1,4 +1,10 @@
-const { Server } = require('socket.io');
+let Server;
+try {
+  Server = require('socket.io').Server;
+} catch (err) {
+  // socket.io not installed yet
+}
+
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Conversation = require('../models/Conversation');
@@ -13,6 +19,11 @@ function getOnlineUserIds() {
 }
 
 function initChatSocket(httpServer) {
+  if (!Server) {
+    console.warn('⚠️ [Chat Socket]: socket.io is not installed yet. Run "npm install socket.io" in backend to enable real-time chat.');
+    return null;
+  }
+
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {

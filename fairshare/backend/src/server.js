@@ -10,12 +10,12 @@ const startServer = async () => {
   const server = http.createServer(app);
 
   // Initialize Socket.io real-time chat
-  initChatSocket(server);
+  const io = initChatSocket(server);
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 FairShare Server running on http://localhost:${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`💬 Real-Time Chat Socket.io enabled`);
+    if (io) console.log(`💬 Real-Time Chat Socket.io enabled`);
   });
 
   server.on('error', (err) => {
